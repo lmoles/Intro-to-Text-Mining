@@ -1,17 +1,27 @@
 ---
 title: "Intro to Text Mining"
 author: "Pantea Ferdosian, Kevin Hoffman, Luke Moles, Marissa Shand"
-output: html_document
+output:
+ html_document:
+   toc: TRUE
+   theme: united
+   toc_depth: 3
+   number_sections: TRUE
+   df_print: paged
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Motivation
+# Motivation
 
-## Sentiment Analysis
+# Sentiment Analysis
 
-## Relationships between words: n-grams and correlations
+# Relationships between words: n-grams and correlations
 
-## Latent Direchlet Allocation
+# Latent Direchlet Allocation
+
+# References
+
+1. [Text Mining with R](https://www.tidytextmining.com/index.html)
