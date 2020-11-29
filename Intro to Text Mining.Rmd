@@ -1,7 +1,6 @@
 ---
 title: "Intro to Text Mining"
-author: "Marissa Shand (mes7jt)"
-date: "11/29/2020"
+author: "Pantea Ferdosian, Keving Hoffman, Luke Moles, Marissa Shand"
 output: html_document
 ---
 
