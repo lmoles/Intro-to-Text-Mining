@@ -86,6 +86,8 @@ tidytext provides three general purpose lexicons:
 
 # Relationships between words: n-grams and correlations
 
+# sample change
+
 # Latent Direchlet Allocation
 
 # References
