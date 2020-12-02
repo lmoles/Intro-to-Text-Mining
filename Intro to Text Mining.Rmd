@@ -86,9 +86,111 @@ tidytext provides three general purpose lexicons:
 
 # Relationships between words: n-grams and correlations
 
-# sample change
-
 # Latent Direchlet Allocation
+
+- Intro to Topic Modeling
+   - similar to clustering numeric data
+   - topics are clusters of words
+   - goal is to discover latent patterns in documents
+   - Examples
+      - Apply it to a large batch of emails to understand what topics were discussed
+      - Presidential speeches to identify themes
+      - Collection of tweets from a group to identify what topics people tweet about
+   - Latent Dirichlet allocation is an unsupervised method for finding topics in a collection of documents
+      - probabilistic generative model
+      - every document is a collection of topics
+      - every topic is a collection of words
+      - Documents are a mixture of topics ie document 1 is 60% of topic 1 and 40% of topic 2
+      - Topics are a mixture of words ie 10% apples, 5% oranges, etc (maybe the topic is fruit)
+   - Algorithm
+      - From the paper:
+         - Choose N from a poisson distribution
+         - Choose $\Theta$ from a multinomial distribution
+         - For each of the N words
+            - Choose a topic $z_n$ from the multinomial($\theta$) distribution
+            - Choose a word $w_n$ from $p(w_n|z_n,\beta)$, the probability of a word given the document
+      - In easier terms maybe:
+         - first, select k number of topics
+         - randomly assign each word in each document in each topic
+         - calculate proportion of words in document assigned to a topic
+         - calculate proportion of words assigned to topic across all topics
+         - Reassign word to new topic by using gibbes to sample the posterior
+         - Repeat sampling for a number of draws
+   - LDA Example: Randomly select 20 books from the top 10 authors gutenburg. How many authors are present?
+      - authors are topics
+      - books are documents
+      - Tune k with https://cran.r-project.org/web/packages/ldatuning/vignettes/topics.html
+         - Rather than fitting 10 models (k=1..10), use this package
+         - Discuss hyperparemeter tuning
+      - Identify and discuss one of the 4 criteria for evaluating each LDA model
+
+## LDA Example
+```{r}
+library(gutenbergr)
+# Set of popular authors
+authors.popular <-
+   c(
+      "Dickens, Charles",
+      "Austen, Jane",
+      "Shelley, Mary Wollstonecraft",
+      "Twain, Mark",
+      "Doyle, Arthur Conan",
+      "Wilde, Oscar",
+      "Leech, John",
+      "Hawthorne, Nathaniel",
+      "Stevenson, Robert Louis",
+      "Carroll, Lewis"
+   )
+
+# Download all books by these authors
+books.authors.popular <- gutenberg_metadata %>%
+   filter(
+      author %in% authors.popular,
+      language == "en", # Only english
+      !str_detect(title, "Works"),  # Ignore collections of works
+      has_text,
+      !str_detect(rights, "Copyright")
+   ) %>%
+   distinct(title, .keep_all = TRUE) %>%
+   select(gutenberg_id, title)
+
+# Select a random sample of 20
+books.selection <- books.metadata %>% sample_n(20)
+
+# Download the 20 books
+books.list <-
+   books.selection$gutenberg_id %>% gutenberg_download(meta_fields = "title")
+
+# Clean the text by removing blank rows
+books.text <- books.list %>%
+   filter(text != '') %>% # Remove blank lines
+   select(-gutenberg_id) %>% # Drop the id
+   group_by(title)  %>%
+   unite(document, title)
+
+words.by.book <- books.text %>%
+   unnest_tokens(word, text)
+
+# Generate word counts for each word in our documents
+word.counts <- words.by.book %>%
+   anti_join(stop_words) %>%
+   count(document, word, sort = TRUE) %>%
+   ungroup()
+
+# Create a Document Term Matrix
+books_dtm <- word.counts %>%
+   cast_dtm(document, word, n)
+
+# Try a model with 5 authors
+books.lda <- LDA(books_dtm, k = 5, control = list(seed = 555))
+
+# TODO:
+# - Show some visualizations of words and topics and the associated probabilities
+# - Tune k with ldatuning package
+# - Show results and evaluate if we chose the correct k
+
+```
+
 
 # References
 
@@ -99,3 +201,5 @@ tidytext provides three general purpose lexicons:
 3. [Roman Numerals with Regex](https://www.oreilly.com/library/view/regular-expressions-cookbook/9780596802837/ch06s09.html)
 
 4. [Sentiment Datasets](https://www.datacamp.com/community/tutorials/sentiment-analysis-R)
+
+5. [Latent Dirichlet Allocation](http://www.cse.cuhk.edu.hk/irwin.king/_media/presentations/latent_dirichlet_allocation.pdf)
