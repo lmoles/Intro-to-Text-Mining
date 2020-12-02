@@ -14,9 +14,75 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Motivation
+# Text Mining Motivation
+
+
+
+# Working with text data
+
+"A **token** is a meaningful unit of text, such as wa word, that we are interested in using for analysis, and tokenization is the process of splitting test into tokens" [1]. Can be a word, n-gram, sentence or paragraph.
+
+## Packages we will be using 
+
+```{r, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(tidytext)
+library(gutenbergr)
+```
+
+## Exploring Project Gutenberg
+
+"Project Gutenberg is an online library of free eBooks. Project Gutenberg was the first provider of free electronic books, or eBooks." [2]
+
+```{r}
+## Find books by Charles Dickens
+dickens <- gutenberg_works(author == 'Dickens, Charles')
+dim(dickens)
+head(dickens)
+
+## We will be working with A Tale of Two Cities, which has id 98
+two_cities <- gutenberg_download(98)
+head(two_cities)
+
+## There are three books that make up this book
+## Get book number
+two_cities <- two.cities %>% mutate(book = cumsum(str_detect(text, regex("^Book the"))),
+                                    linenumber = row_number())
+
+## For each book get the linenumber in the book, and the chapter
+## Roman numerals: https://www.oreilly.com/library/view/regular-expressions-cookbook/9780596802837/ch06s09.html
+two_cities <- two_cities %>% group_by(book) %>% 
+   mutate(book_linenumber = row_number(),
+          chapter = cumsum(str_detect(text, regex("^(?=[MDCLXVI])M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})[.]")))) %>%
+   ungroup()
+
+## Convert to tidy text
+tidy_two_cities <- two_cities %>% unnest_tokens(word, text)
+head(tidy_two_cities)
+```
+## Stop words
+
+```{r}
+## Error arose: https://stackoverflow.com/questions/9221310/r-debugging-only-0s-may-be-mixed-with-negative-subscripts
+data(stop_words)
+stop_words
+
+tidy_two_cities %>% anti_join(stop_words, by = c("word" = "word"))
+```
+
 
 # Sentiment Analysis
+
+## Sentiment Lexicons 
+
+tidytext provides three general purpose lexicons:
+
+1. AFINN
+
+2. Bing
+
+3. NRC
+
 
 # Relationships between words: n-grams and correlations
 
@@ -25,3 +91,9 @@ knitr::opts_chunk$set(echo = TRUE)
 # References
 
 1. [Text Mining with R](https://www.tidytextmining.com/index.html)
+
+2. [Project Gutenberg](https://www.gutenberg.org/)
+
+3. [Roman Numerals with Regex](https://www.oreilly.com/library/view/regular-expressions-cookbook/9780596802837/ch06s09.html)
+
+4. [Sentiment Datasets](https://www.datacamp.com/community/tutorials/sentiment-analysis-R)
