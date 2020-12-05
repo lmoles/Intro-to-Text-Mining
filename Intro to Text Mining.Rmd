@@ -118,7 +118,80 @@ tidytext provides three general purpose lexicons:
 
 * TF-IDF is short for *term frequency–inverse document frequency*, which is a statistical measure that indicates how important a word is to a document in a collection. This is obtained by multiplying the 2 mentioned quantities, which would indicate "the frequency of a term adjusted for how rarely it is used".
 
-CODE TO BE ADDED HERE
+## Top 10 words with highest tf-idf values in Charles Dicken's A Tale of Two Cities (By chapters)
+
+
+
+```{r}
+library(dplyr)
+library(tidyverse)
+library(tidytext)
+library(gutenbergr)
+
+## Find books by Charles Dickens
+dickens <- gutenberg_works(author == 'Dickens, Charles')
+dim(dickens)
+head(dickens)
+## We will be working with A Tale of Two Cities, which has id 98
+two_cities <- gutenberg_download(98)
+head(two_cities)
+## There are three books that make up this book
+## Get book number
+two_cities <- two_cities %>% mutate(book = cumsum(str_detect(text, regex("^Book the"))),
+                                    linenumber = row_number())
+## For each book get the linenumber in the book, and the chapter
+## Roman numerals: https://www.oreilly.com/library/view/regular-expressions-cookbook/9780596802837/ch06s09.html
+two_cities <- two_cities %>% group_by(book) %>% 
+   mutate(book_linenumber = row_number(),
+          chapter = cumsum(str_detect(text, regex("^(?=[MDCLXVI])M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})[.]")))) %>%
+   ungroup()
+## Convert to tidy text
+tidy_two_cities <- two_cities %>% unnest_tokens(word, text)
+head(tidy_two_cities)
+```
+
+
+```{r}
+tidy_two_cities %>%
+    count(chapter, word, sort = TRUE) %>%
+    bind_tf_idf(word, chapter, n) %>%
+    arrange(-tf_idf) %>%
+    group_by(chapter) %>%
+    top_n(10) %>%
+    ungroup %>%
+    mutate(word = reorder(word, tf_idf)) %>%
+    ggplot(aes(word, tf_idf, fill = chapter)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ chapter, scales = "free") +
+    coord_flip()
+```
+
+As shown below, the $tf$-$idf$ values are not different after we remove the stop words because the $idf$ values of our stop words are very small, as they appear in all chapters.
+
+
+## After removing Stop words
+
+```{r}
+## Error arose: https://stackoverflow.com/questions/9221310/r-debugging-only-0s-may-be-mixed-with-negative-subscripts
+data(stop_words)
+stop_words
+tidy_two_cities %>% anti_join(stop_words, by = c("word" = "word"))
+```
+
+```{r}
+tidy_two_cities %>%
+    count(chapter, word, sort = TRUE) %>%
+    bind_tf_idf(word, chapter, n) %>%
+    arrange(-tf_idf) %>%
+    group_by(chapter) %>%
+    top_n(10) %>%
+    ungroup %>%
+    mutate(word = reorder(word, tf_idf)) %>%
+    ggplot(aes(word, tf_idf, fill = chapter)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ chapter, scales = "free") +
+    coord_flip()
+```
 
 # Relationships between words: n-grams and correlations
 
