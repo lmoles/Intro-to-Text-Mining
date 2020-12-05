@@ -172,7 +172,7 @@ If we just look at positive or negative categories to determine the overall sent
 
 Can calculate using 
 
-Overall sentiment = \frac{positive words}{total words}
+Overall sentiment = positive words / total words
 
 ```{r}
 ## Join sentiments with Tale of Two Cities
@@ -225,10 +225,11 @@ afinn_two_cities %>%
 
 ## Look at graphical representation of sentiment over time
 afinn_two_cities %>% group_by(book, book_linenumber) %>% 
-   summarize(average_sentiment = mean(afinn)) %>% 
+   summarize(book_linenumber = book_linenumber %/% 50,
+             average_sentiment = mean(afinn)) %>% 
    filter(book > 0) %>% 
    ggplot() + 
-   geom_col(aes(x = book_linenumber, y = average_sentiment, fill = book), show.legend = FALSE) + 
+   geom_bar(aes(x = book_linenumber, y = average_sentiment, fill = book), stat = 'identity', show.legend = FALSE) + 
    facet_wrap(~book, ncol = 1, scales = 'free_x')
 ```
 
@@ -253,7 +254,8 @@ bing_two_cities %>%
 
 ## Look at graphical representation of sentiment over time
 bing_two_cities %>% group_by(book, book_linenumber) %>% 
-   summarize(num_pos = sum(bing == "positve"),
+   summarize(book_linenumber = book_linenumber%/%50,
+             num_pos = sum(bing == "positve"),
              num_neg = sum(bing == "negative"),
              sentiment = num_pos - num_neg,
              average_sentiment = sum(bing == "positive")/n()) %>% 
@@ -263,6 +265,7 @@ bing_two_cities %>% group_by(book, book_linenumber) %>%
    facet_wrap(~book, ncol = 1, scales = 'free_x')
 ```
 
+Disadvantages of looking at words individually is that you cannot look at how they work together to form a sentance. In English, a double negative creates a positive. 
 
 # TF-IDF
 
