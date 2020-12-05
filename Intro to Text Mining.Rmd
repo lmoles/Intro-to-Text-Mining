@@ -68,6 +68,95 @@ dickens <- gutenberg_works(author == 'Dickens, Charles')
 dim(dickens)
 head(dickens)
 
+```
+## Stop words
+
+```{r}
+## Error arose: https://stackoverflow.com/questions/9221310/r-debugging-only-0s-may-be-mixed-with-negative-subscripts
+data(stop_words)
+
+stop_two_cities <- tidy_two_cities %>% anti_join(stop_words, by = c("word" = "word"))
+
+## How many words were removed?
+dim(tidy_two_cities)[1] - dim(stop_two_cities)[1]
+```
+
+# TF-IDF
+
+**How should quantify what a document is about?**
+
+
+* TF term is short for *term frequency* which indicates how frequently a word appears in a document. The document would most likely include unimportant words which we classified earlier as *stop words*, but removing the stop words would not be an efficient approach in this case because some of these words might be more important in some documents than others. 
+
+* IDF term or *inverse document frequency* defined as :$idf(term) = ln(\frac{n_{documenta}}{n_{documents\ containing\ term}})$. This method adjust the weights and balances the usage of words in documents. This implies that it decreases the weight for widely used words and increases the weight for words that did not appear a lot.
+
+* TF-IDF is short for *term frequency–inverse document frequency*, which is a statistical measure that indicates how important a word is to a document in a collection. This is obtained by multiplying the 2 mentioned quantities, which would indicate "the frequency of a term adjusted for how rarely it is used".
+
+### Top 10 words with highest tf-idf values in Charles Dicken's: 
+
+#### "A Tale of Two Cities”, “Great Expectations”, “A Christmas Carol in Prose; Being a Ghost Story of Christmas”, “Oliver Twist”, "David Copperfield" and “Hard Times”.
+
+```{r}
+## We will look at "A Tale of Two Cities", “Great Expectations”, “A Christmas Carol in Prose; Being a Ghost Story of Christmas”, “Oliver Twist”, "David Copperfield" and “Hard Times”, which have ids 98, 1400, 46, 730, 766, 786 
+
+dickens_books <- gutenberg_download(c(98, 1400, 46, 730, 766, 786), meta_fields="title")
+
+head(dickens_books)
+
+## Tokenizing all the words in the 6 books
+
+tidy_dickens <- dickens_books %>%
+  unnest_tokens(word, text)
+
+head(tidy_dickens)
+```
+```{r}
+tidy_dickens %>%
+    count(title, word, sort = TRUE) %>%
+    bind_tf_idf(word, title, n) %>%
+    arrange(-tf_idf) %>%
+    group_by(title) %>%
+    top_n(10) %>%
+    ungroup %>%
+    mutate(word = reorder(word, tf_idf)) %>%
+    ggplot(aes(word, tf_idf, fill = title)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ title, scales = "free") +
+    coord_flip()
+```
+
+
+
+As shown below, the $tf$-$idf$ values are not different after we remove the stop words because the $idf$ values of our stop words are very small, as they appear in all chapters.
+
+
+## After removing Stop words
+
+```{r}
+## Error arose: https://stackoverflow.com/questions/9221310/r-debugging-only-0s-may-be-mixed-with-negative-subscripts
+data(stop_words)
+stop_words
+tidy_dickens<- tidy_dickens %>% anti_join(stop_words, by = c("word" = "word"))
+```
+
+```{r}
+tidy_dickens %>%
+    count(title, word, sort = TRUE) %>%
+    bind_tf_idf(word, title, n) %>%
+    arrange(-tf_idf) %>%
+    group_by(title) %>%
+    top_n(10) %>%
+    ungroup %>%
+    mutate(word = reorder(word, tf_idf)) %>%
+    ggplot(aes(word, tf_idf, fill = title)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ title, scales = "free") +
+    coord_flip()
+```
+
+After doing this analysis and seeing the results, we can dive deeper into text mining specifically on the Charles Dickens' *A Tale of Two Cities*. 
+
+```{r}
 ## We will be working with A Tale of Two Cities, which has id 98
 two_cities <- gutenberg_download(98)
 head(two_cities)
@@ -87,17 +176,6 @@ two_cities <- two_cities %>% group_by(book) %>%
 ## Convert to tidy text
 tidy_two_cities <- two_cities %>% unnest_tokens(word, text)
 head(tidy_two_cities)
-```
-## Stop words
-
-```{r}
-## Error arose: https://stackoverflow.com/questions/9221310/r-debugging-only-0s-may-be-mixed-with-negative-subscripts
-data(stop_words)
-
-stop_two_cities <- tidy_two_cities %>% anti_join(stop_words, by = c("word" = "word"))
-
-## How many words were removed?
-dim(tidy_two_cities)[1] - dim(stop_two_cities)[1]
 ```
 
 
@@ -266,53 +344,7 @@ bing_two_cities %>% group_by(book, book_linenumber) %>%
 ```
 
 
-# TF-IDF
 
-**How should quantify what a document is about?**
-
-
-* TF term is short for *term frequency* which indicates how frequently a word appears in a document. The document would most likely include unimportant words which we classified earlier as *stop words*, but removing the stop words would not be an efficient approach in this case because some of these words might be more important in some documents than others. 
-
-* IDF term or *inverse document frequency* defined as :$idf(term) = ln(\frac{n_{documenta}}{n_{documents\ containing\ term}})$. This method adjust the weights and balances the usage of words in documents. This implies that it decreases the weight for widely used words and increases the weight for words that did not appear a lot.
-
-* TF-IDF is short for *term frequency–inverse document frequency*, which is a statistical measure that indicates how important a word is to a document in a collection. This is obtained by multiplying the 2 mentioned quantities, which would indicate "the frequency of a term adjusted for how rarely it is used".
-
-## Top 10 words with highest tf-idf values in Charles Dicken's A Tale of Two Cities (By chapters)
-
-```{r}
-tidy_two_cities %>%
-    count(chapter, word, sort = TRUE) %>%
-    bind_tf_idf(word, chapter, n) %>%
-    arrange(-tf_idf) %>%
-    group_by(chapter) %>%
-    top_n(10) %>%
-    ungroup %>%
-    mutate(word = reorder(word, tf_idf)) %>%
-    ggplot(aes(word, tf_idf, fill = chapter)) +
-    geom_col(show.legend = FALSE) +
-    facet_wrap(~ chapter, scales = "free") +
-    coord_flip()
-```
-
-As shown below, the $tf$-$idf$ values are not different after we remove the stop words because the $idf$ values of our stop words are very small, as they appear in all chapters.
-
-
-## After removing Stop words
-
-```{r}
-stop_two_cities %>%
-    count(chapter, word, sort = TRUE) %>%
-    bind_tf_idf(word, chapter, n) %>%
-    arrange(-tf_idf) %>%
-    group_by(chapter) %>%
-    top_n(10) %>%
-    ungroup %>%
-    mutate(word = reorder(word, tf_idf)) %>%
-    ggplot(aes(word, tf_idf, fill = chapter)) +
-    geom_col(show.legend = FALSE) +
-    facet_wrap(~ chapter, scales = "free") +
-    coord_flip()
-```
 
 # Sequences of Words: n-grams
 
