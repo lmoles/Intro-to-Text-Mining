@@ -52,6 +52,7 @@ A few examples of how we use text mining every day:
 library(tidyverse)
 library(tidytext)
 library(gutenbergr)
+library(dplyr)
 ```
 
 ## Exploring Project Gutenberg
@@ -123,10 +124,6 @@ tidytext provides three general purpose lexicons:
 
 
 ```{r}
-library(dplyr)
-library(tidyverse)
-library(tidytext)
-library(gutenbergr)
 
 ## Find books by Charles Dickens
 dickens <- gutenberg_works(author == 'Dickens, Charles')
