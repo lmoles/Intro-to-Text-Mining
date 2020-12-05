@@ -127,7 +127,7 @@ tidy_dickens %>%
 
 
 
-As shown below, the $tf$-$idf$ values are not different after we remove the stop words because the $idf$ values of our stop words are very small, as they appear in all chapters.
+As shown below, the $tf$-$idf$ values are not different after we remove the stop words because the $idf$ values of our stop words are very small, as they appear in all books. It is worth noting again that removing these stop words might not be the most efficient way because some of these words might be more important in some documents than others.  
 
 
 ## After removing Stop words
