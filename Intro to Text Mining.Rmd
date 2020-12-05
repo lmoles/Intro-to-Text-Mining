@@ -16,13 +16,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Text Mining Motivation
 
-#### **Need for Text Mining**:
+## **Need for Text Mining**:
 
 The amount of data that we produce every day is truly astonishing. With the evolution of communication through social media, we generate tons and tons of data. Out of all of this generated data, only around $20\%$ are Structured and well formatted. The remaining of the data is Unstructured Data For instance, the bulk of emails we send, the text messages and the comments in social media are examples of Unstructured Data.
 These Unstructured data may be analyzed and mined in order to extract useful information. 
 
 
-#### What is "Text Mining" and where is it used? 
+## What is "Text Mining" and where is it used? 
 
 Text Mining is basically the process of extracting meaningful information from natural language text. 
 
@@ -33,7 +33,7 @@ A few examples of how we use text mining every day:
 * Predictive Typing
 * Spell Checker
     
-####  Terminologies In Text Mining:
+##  Terminologies In Text Mining:
 
 **Tokenization: ** The process of splitting the whole data (corpus) into smaller chunks is known as tokenization. (i.e. sentences into words)
 
@@ -53,6 +53,7 @@ library(tidyverse)
 library(tidytext)
 library(gutenbergr)
 library(dplyr)
+#install.packages('textdata')
 ```
 
 ## Exploring Project Gutenberg
@@ -71,7 +72,7 @@ head(two_cities)
 
 ## There are three books that make up this book
 ## Get book number
-two_cities <- two.cities %>% mutate(book = cumsum(str_detect(text, regex("^Book the"))),
+two_cities <- two_cities %>% mutate(book = cumsum(str_detect(text, regex("^Book the"))),
                                     linenumber = row_number())
 
 ## For each book get the linenumber in the book, and the chapter
@@ -90,23 +91,178 @@ head(tidy_two_cities)
 ```{r}
 ## Error arose: https://stackoverflow.com/questions/9221310/r-debugging-only-0s-may-be-mixed-with-negative-subscripts
 data(stop_words)
-stop_words
 
-tidy_two_cities %>% anti_join(stop_words, by = c("word" = "word"))
+stop_two_cities <- tidy_two_cities %>% anti_join(stop_words, by = c("word" = "word"))
+
+## How many words were removed?
+dim(tidy_two_cities)[1] - dim(stop_two_cities)[1]
 ```
 
 
 # Sentiment Analysis
 
+Now that we have a book to work with, how do we determine the sentiment of the words in this book? 
+
 ## Sentiment Lexicons 
 
-tidytext provides three general purpose lexicons:
+Within the tidytext library there are three lexicons for use:
 
-1. AFINN
+1. AFINN - assigns each token a sentiment between -5 and 5
+   * Gives a sense of degree of positivity or negativity 
 
-2. Bing
+2. Bing - groups words into a positive or negative category
 
-3. NRC
+3. Loughran - groups words into one of 6 different sentiment categories: {Constraining, Litigious, Negative, Positive, Superfluous, Uncertainty}
+   * Primarily used for financial text
+
+4. NRC - groups words into one of 10 different sentiment categories: {Anger, Anticipation, Disgust, Fear, Joy, Negative, Positive, Sadness, Surprise, Trust}
+
+   
+## Working with the sentiment lexicons
+
+Because words can have different meanings depending on the context, words can fall into different sentiment categories so there are duplicates in the datasets.
+
+```{r, message = FALSE}
+## Sentiment lexicons
+afinn <- get_sentiments('afinn')
+afinn %>% 
+  group_by(word) %>% 
+  summarize(ndups = n_distinct(value)) %>% 
+  filter(ndups>1)
+
+bing <- get_sentiments('bing')
+bing %>% 
+  group_by(word) %>% 
+  summarize(ndups = n_distinct(sentiment)) %>% 
+  filter(ndups>1)
+
+loughran <- get_sentiments('loughran')
+loughran %>% 
+  group_by(word) %>% 
+  summarize(ndups = n_distinct(sentiment)) %>% 
+  filter(ndups>1)
+
+nrc <- get_sentiments('nrc')
+nrc %>% 
+  group_by(word) %>% 
+  summarize(ndups = n_distinct(sentiment)) %>% 
+  filter(ndups>1)
+```
+
+## Comparing AFINN and Bing
+
+Let's compare AFINN and Bing. If AFINN value is greater than 0, assign it a positive value else assign negative value. They disagree on 17 words which makes up 0.01% of the data. Therefore AFINN and Bing generally agree with each other
+
+```{r}
+## Join afinn and bing
+afinn_bing <- afinn %>% inner_join(bing, by = c('word' = 'word')) %>% 
+   rename('bing_sentiment' = 'sentiment') %>%
+   mutate(afinn_sentiment = ifelse(value >= 0, 'positive', 'negative'),
+          same = afinn_sentiment == bing_sentiment)
+
+## How many words do they disagree on?
+dim(afinn_bing %>% filter(same == FALSE))[1]
+dim(afinn_bing %>% filter(same == FALSE))[1]/dim(afinn_bing)[1]
+```
+
+
+## Overall sentiment of A Tale of Two Cities
+
+If we just look at positive or negative categories to determine the overall sentiment of the book, we see that the overall sentiment is 0.366 which 
+
+Can calculate using 
+
+Overall sentiment = \frac{positive words}{total words}
+
+```{r}
+## Join sentiments with Tale of Two Cities
+bing_two_cities <- stop_two_cities %>% left_join(bing, by = c('word' = 'word')) %>% rename('bing' = 'sentiment')
+
+## How many words have an associated bing sentiment?
+dim(bing_two_cities %>% filter(!is.na(bing)))[1]
+dim(bing_two_cities %>% filter(!is.na(bing)))[1]/dim(bing_two_cities)[1]
+
+## Filter for words that have a sentiment value
+bing_two_cities <- bing_two_cities %>% filter(!is.na(bing))
+```
+
+```{r}
+dim(bing_two_cities %>% filter(bing == "positive"))[1]/dim(bing_two_cities)[1]
+```
+
+```{r}
+## Join sentiments with Tale of Two Cities
+afinn_two_cities <- stop_two_cities %>% left_join(afinn, by = c('word' = 'word')) %>% rename('afinn' = 'value')
+
+## How many words have an associated afinn sentiment?
+dim(afinn_two_cities %>% filter(!is.na(afinn)))[1]
+dim(afinn_two_cities %>% filter(!is.na(afinn)))[1]/dim(afinn_two_cities)[1]
+
+## Filter for words that have a sentiment value
+afinn_two_cities <- afinn_two_cities %>% filter(!is.na(afinn))
+```
+
+```{r}
+mean(afinn_two_cities$afinn)
+```
+
+
+
+## Sentiment broken down by book and chapter: analyzing sentiment change over time
+
+```{r}
+## Sentiment of each book
+afinn_two_cities %>% 
+   group_by(book) %>% 
+   summarize(average_sentiment = mean(afinn)) %>% 
+   filter(book > 0)
+
+## Sentiment of each chapter of each book
+afinn_two_cities %>% 
+   group_by(book, chapter) %>% 
+   summarize(average_sentiment = mean(afinn)) %>% 
+   filter(book > 0)
+
+## Look at graphical representation of sentiment over time
+afinn_two_cities %>% group_by(book, book_linenumber) %>% 
+   summarize(average_sentiment = mean(afinn)) %>% 
+   filter(book > 0) %>% 
+   ggplot() + 
+   geom_col(aes(x = book_linenumber, y = average_sentiment, fill = book), show.legend = FALSE) + 
+   facet_wrap(~book, ncol = 1, scales = 'free_x')
+```
+
+```{r}
+## Sentiment of each book
+bing_two_cities %>% 
+   group_by(book) %>% 
+   summarize(num_pos = sum(bing == "positive"),
+             num_neg = sum(bing == "ngeative"),
+             sentiment = num_pos - num_neg, 
+             average_sentiment = sum(bing == "positive")/n()) %>% 
+   filter(book > 0)
+
+## Sentiment of each chapter of each book
+bing_two_cities %>% 
+   group_by(book, chapter) %>% 
+   summarize(num_pos = sum(bing == "positive"),
+             num_neg = sum(bing == "negative"),
+             sentiment = num_pos - num_neg,
+             average_sentiment = sum(bing == "positive")/n()) %>% 
+   filter(book > 0)
+
+## Look at graphical representation of sentiment over time
+bing_two_cities %>% group_by(book, book_linenumber) %>% 
+   summarize(num_pos = sum(bing == "positve"),
+             num_neg = sum(bing == "negative"),
+             sentiment = num_pos - num_neg,
+             average_sentiment = sum(bing == "positive")/n()) %>% 
+   filter(book > 0) %>% 
+   ggplot() + 
+   geom_col(aes(x = book_linenumber, y = sentiment, fill = book), show.legend = FALSE) + 
+   facet_wrap(~book, ncol = 1, scales = 'free_x')
+```
+
 
 # TF-IDF
 
@@ -120,33 +276,6 @@ tidytext provides three general purpose lexicons:
 * TF-IDF is short for *term frequency–inverse document frequency*, which is a statistical measure that indicates how important a word is to a document in a collection. This is obtained by multiplying the 2 mentioned quantities, which would indicate "the frequency of a term adjusted for how rarely it is used".
 
 ## Top 10 words with highest tf-idf values in Charles Dicken's A Tale of Two Cities (By chapters)
-
-
-
-```{r}
-
-## Find books by Charles Dickens
-dickens <- gutenberg_works(author == 'Dickens, Charles')
-dim(dickens)
-head(dickens)
-## We will be working with A Tale of Two Cities, which has id 98
-two_cities <- gutenberg_download(98)
-head(two_cities)
-## There are three books that make up this book
-## Get book number
-two_cities <- two_cities %>% mutate(book = cumsum(str_detect(text, regex("^Book the"))),
-                                    linenumber = row_number())
-## For each book get the linenumber in the book, and the chapter
-## Roman numerals: https://www.oreilly.com/library/view/regular-expressions-cookbook/9780596802837/ch06s09.html
-two_cities <- two_cities %>% group_by(book) %>% 
-   mutate(book_linenumber = row_number(),
-          chapter = cumsum(str_detect(text, regex("^(?=[MDCLXVI])M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})[.]")))) %>%
-   ungroup()
-## Convert to tidy text
-tidy_two_cities <- two_cities %>% unnest_tokens(word, text)
-head(tidy_two_cities)
-```
-
 
 ```{r}
 tidy_two_cities %>%
@@ -169,14 +298,7 @@ As shown below, the $tf$-$idf$ values are not different after we remove the stop
 ## After removing Stop words
 
 ```{r}
-## Error arose: https://stackoverflow.com/questions/9221310/r-debugging-only-0s-may-be-mixed-with-negative-subscripts
-data(stop_words)
-stop_words
-tidy_two_cities %>% anti_join(stop_words, by = c("word" = "word"))
-```
-
-```{r}
-tidy_two_cities %>%
+stop_two_cities %>%
     count(chapter, word, sort = TRUE) %>%
     bind_tf_idf(word, chapter, n) %>%
     arrange(-tf_idf) %>%
@@ -231,7 +353,7 @@ tidy_two_cities %>%
       - Identify and discuss one of the 4 criteria for evaluating each LDA model
 
 ## LDA Example
-```{r}
+```{r, eval=FALSE}
 library(gutenbergr)
 # Set of popular authors
 authors.popular <-
@@ -310,4 +432,6 @@ books.lda <- LDA(books_dtm, k = 5, control = list(seed = 555))
 
 5. [Latent Dirichlet Allocation](http://www.cse.cuhk.edu.hk/irwin.king/_media/presentations/latent_dirichlet_allocation.pdf)
 
-6. [TF-IDF] (https://cran.r-project.org/web/packages/tidytext/vignettes/tf_idf.html) 
+6. [TF-IDF](https://cran.r-project.org/web/packages/tidytext/vignettes/tf_idf.html) 
+
+7. [Loughran Sentiment Dataset](https://www.rdocumentation.org/packages/tidytext/versions/0.2.0/topics/sentiments)
