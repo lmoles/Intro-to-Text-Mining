@@ -53,6 +53,8 @@ library(tidyverse)
 library(tidytext)
 library(gutenbergr)
 library(dplyr)
+library(igraph)
+library(ggraph)
 #install.packages('textdata')
 ```
 
@@ -312,8 +314,68 @@ stop_two_cities %>%
     coord_flip()
 ```
 
-# Relationships between words: n-grams and correlations
+# Sequences of Words: n-grams
 
+It is sometimes useful to look at groups of words in order to understand how they can relate and build off one another. The n-grams of a passage are all the length $n$ sequences of words. For example, the bi-grams of "The quick brown fox jumped" are:
+
+* the quick
+* quick brown
+* brown fox
+* fox jumped
+
+and the tri-grams are:
+
+* the quick brown
+* quick brown fox
+* brown fox jumped
+
+Notice that these n-grams can contain stopwords, so it is often a good idea to filter out any results that include at least one. In practice, we can mine text for all n-grams with lengths between some specified min and max, but here we start by extracting the bigrams from *A Tale of Two Cities*.
+
+```{r}
+# download book text
+ttc <- gutenberg_download(98)['text']
+# remove blank spaces
+ttc <- ttc[ttc$text!='',]
+# remove header material
+ttc <- ttc[53:nrow(ttc),]
+
+# find all size 2 n-grams
+# filter out pairs with stopwords
+ngrams <- unnest_tokens(ttc, ngram, text, token='ngrams', n=2) %>%
+  separate(col=ngram, into=c('first','second'), sep=' ') %>%
+  filter(!(first %in% stop_words$word)) %>%
+  filter(!(second %in% stop_words$word))
+
+print(paste('There are', nrow(ngrams), 'bigrams without stopwords'))
+```
+
+Even after removing the n-grams that contain stopwords, there are still nearly 12,000 results. We can count the occurrences of each unique pair in order to reduce this number and get a better idea of what bigrams are important.
+
+```{r}
+# find the number of occurrences for each pair
+# take the top 50
+ngrams <- ngrams %>%
+  group_by(first, second) %>%
+  summarize(n=n()) %>%
+  arrange(desc(n)) %>%
+  head(50)
+
+head(ngrams)
+```
+Since this text is from a novel, the most common pairs represent the names of characters who are frequently mentioned. Still, some other results may be interesting. We can visualize these by treating the bigrams as a directed graph.
+
+```{r}
+# make a directed graph of bigrams
+g <- graph.data.frame(ngrams, directed=T)
+
+# display graph
+ggraph(g, layout='kk') +
+  geom_edge_link(arrow=arrow(angle=20, type='closed', length=unit(0.1, 'inches')),
+                 aes(color=n)) +
+  geom_node_point() +
+  geom_node_text(aes(label=name), size=2, vjust=1.5, hjust=1) +
+  scale_edge_color_gradient(low='red', high='blue')
+```
 
 # Latent Direchlet Allocation
 
