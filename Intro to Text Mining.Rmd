@@ -53,6 +53,8 @@ library(tidyverse)
 library(tidytext)
 library(gutenbergr)
 library(dplyr)
+library(igraph)
+library(ggraph)
 #install.packages('textdata')
 ```
 
@@ -66,6 +68,95 @@ dickens <- gutenberg_works(author == 'Dickens, Charles')
 dim(dickens)
 head(dickens)
 
+```
+## Stop words
+
+```{r}
+## Error arose: https://stackoverflow.com/questions/9221310/r-debugging-only-0s-may-be-mixed-with-negative-subscripts
+data(stop_words)
+
+stop_two_cities <- tidy_two_cities %>% anti_join(stop_words, by = c("word" = "word"))
+
+## How many words were removed?
+dim(tidy_two_cities)[1] - dim(stop_two_cities)[1]
+```
+
+# TF-IDF
+
+**How should quantify what a document is about?**
+
+
+* TF term is short for *term frequency* which indicates how frequently a word appears in a document. The document would most likely include unimportant words which we classified earlier as *stop words*, but removing the stop words would not be an efficient approach in this case because some of these words might be more important in some documents than others. 
+
+* IDF term or *inverse document frequency* defined as :$idf(term) = ln(\frac{n_{documenta}}{n_{documents\ containing\ term}})$. This method adjust the weights and balances the usage of words in documents. This implies that it decreases the weight for widely used words and increases the weight for words that did not appear a lot.
+
+* TF-IDF is short for *term frequency–inverse document frequency*, which is a statistical measure that indicates how important a word is to a document in a collection. This is obtained by multiplying the 2 mentioned quantities, which would indicate "the frequency of a term adjusted for how rarely it is used".
+
+### Top 10 words with highest tf-idf values in Charles Dicken's: 
+
+#### "A Tale of Two Cities”, “Great Expectations”, “A Christmas Carol in Prose; Being a Ghost Story of Christmas”, “Oliver Twist”, "David Copperfield" and “Hard Times”.
+
+```{r}
+## We will look at "A Tale of Two Cities", “Great Expectations”, “A Christmas Carol in Prose; Being a Ghost Story of Christmas”, “Oliver Twist”, "David Copperfield" and “Hard Times”, which have ids 98, 1400, 46, 730, 766, 786 
+
+dickens_books <- gutenberg_download(c(98, 1400, 46, 730, 766, 786), meta_fields="title")
+
+head(dickens_books)
+
+## Tokenizing all the words in the 6 books
+
+tidy_dickens <- dickens_books %>%
+  unnest_tokens(word, text)
+
+head(tidy_dickens)
+```
+```{r}
+tidy_dickens %>%
+    count(title, word, sort = TRUE) %>%
+    bind_tf_idf(word, title, n) %>%
+    arrange(-tf_idf) %>%
+    group_by(title) %>%
+    top_n(10) %>%
+    ungroup %>%
+    mutate(word = reorder(word, tf_idf)) %>%
+    ggplot(aes(word, tf_idf, fill = title)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ title, scales = "free") +
+    coord_flip()
+```
+
+
+
+As shown below, the $tf$-$idf$ values are not different after we remove the stop words because the $idf$ values of our stop words are very small, as they appear in all books. It is worth noting again that removing these stop words might not be the most efficient way because some of these words might be more important in some documents than others.  
+
+
+## After removing Stop words
+
+```{r}
+## Error arose: https://stackoverflow.com/questions/9221310/r-debugging-only-0s-may-be-mixed-with-negative-subscripts
+data(stop_words)
+stop_words
+tidy_dickens<- tidy_dickens %>% anti_join(stop_words, by = c("word" = "word"))
+```
+
+```{r}
+tidy_dickens %>%
+    count(title, word, sort = TRUE) %>%
+    bind_tf_idf(word, title, n) %>%
+    arrange(-tf_idf) %>%
+    group_by(title) %>%
+    top_n(10) %>%
+    ungroup %>%
+    mutate(word = reorder(word, tf_idf)) %>%
+    ggplot(aes(word, tf_idf, fill = title)) +
+    geom_col(show.legend = FALSE) +
+    facet_wrap(~ title, scales = "free") +
+    coord_flip()
+```
+
+After doing this analysis and seeing the results, we can dive deeper into text mining specifically on the Charles Dickens' *A Tale of Two Cities*. 
+
+```{r}
 ## We will be working with A Tale of Two Cities, which has id 98
 two_cities <- gutenberg_download(98)
 head(two_cities)
@@ -85,17 +176,6 @@ two_cities <- two_cities %>% group_by(book) %>%
 ## Convert to tidy text
 tidy_two_cities <- two_cities %>% unnest_tokens(word, text)
 head(tidy_two_cities)
-```
-## Stop words
-
-```{r}
-## Error arose: https://stackoverflow.com/questions/9221310/r-debugging-only-0s-may-be-mixed-with-negative-subscripts
-data(stop_words)
-
-stop_two_cities <- tidy_two_cities %>% anti_join(stop_words, by = c("word" = "word"))
-
-## How many words were removed?
-dim(tidy_two_cities)[1] - dim(stop_two_cities)[1]
 ```
 
 
@@ -267,97 +347,93 @@ bing_two_cities %>% group_by(book, book_linenumber) %>%
 
 Disadvantages of looking at words individually is that you cannot look at how they work together to form a sentance. In English, a double negative creates a positive. 
 
-# TF-IDF
-
-**How should quantify what a document is about?**
 
 
-* TF term is short for *term frequency* which indicates how frequently a word appears in a document. The document would most likely include unimportant words which we classified earlier as *stop words*, but removing the stop words would not be an efficient approach in this case because some of these words might be more important in some documents than others. 
+# Sequences of Words: n-grams
 
-* IDF term or *inverse document frequency* defined as :$idf(term) = ln(\frac{n_{documenta}}{n_{documents\ containing\ term}})$. This method adjust the weights and balances the usage of words in documents. This implies that it decreases the weight for widely used words and increases the weight for words that did not appear a lot.
+It is sometimes useful to look at groups of words in order to understand how they can relate and build off one another. The n-grams of a passage are all the length $n$ sequences of words. For example, the bi-grams of "The quick brown fox jumped" are:
 
-* TF-IDF is short for *term frequency–inverse document frequency*, which is a statistical measure that indicates how important a word is to a document in a collection. This is obtained by multiplying the 2 mentioned quantities, which would indicate "the frequency of a term adjusted for how rarely it is used".
+* the quick
+* quick brown
+* brown fox
+* fox jumped
 
-## Top 10 words with highest tf-idf values in Charles Dicken's A Tale of Two Cities (By chapters)
+and the tri-grams are:
 
-```{r}
-tidy_two_cities %>%
-    count(chapter, word, sort = TRUE) %>%
-    bind_tf_idf(word, chapter, n) %>%
-    arrange(-tf_idf) %>%
-    group_by(chapter) %>%
-    top_n(10) %>%
-    ungroup %>%
-    mutate(word = reorder(word, tf_idf)) %>%
-    ggplot(aes(word, tf_idf, fill = chapter)) +
-    geom_col(show.legend = FALSE) +
-    facet_wrap(~ chapter, scales = "free") +
-    coord_flip()
-```
+* the quick brown
+* quick brown fox
+* brown fox jumped
 
-As shown below, the $tf$-$idf$ values are not different after we remove the stop words because the $idf$ values of our stop words are very small, as they appear in all chapters.
-
-
-## After removing Stop words
+Notice that these n-grams can contain stopwords, so it is often a good idea to filter out any results that include at least one. In practice, we can mine text for all n-grams with lengths between some specified min and max, but here we start by extracting the bigrams from *A Tale of Two Cities*.
 
 ```{r}
-stop_two_cities %>%
-    count(chapter, word, sort = TRUE) %>%
-    bind_tf_idf(word, chapter, n) %>%
-    arrange(-tf_idf) %>%
-    group_by(chapter) %>%
-    top_n(10) %>%
-    ungroup %>%
-    mutate(word = reorder(word, tf_idf)) %>%
-    ggplot(aes(word, tf_idf, fill = chapter)) +
-    geom_col(show.legend = FALSE) +
-    facet_wrap(~ chapter, scales = "free") +
-    coord_flip()
+# download book text
+ttc <- gutenberg_download(98)['text']
+# remove blank spaces
+ttc <- ttc[ttc$text!='',]
+# remove header material
+ttc <- ttc[53:nrow(ttc),]
+
+# find all size 2 n-grams
+# filter out pairs with stopwords
+ngrams <- unnest_tokens(ttc, ngram, text, token='ngrams', n=2) %>%
+  separate(col=ngram, into=c('first','second'), sep=' ') %>%
+  filter(!(first %in% stop_words$word)) %>%
+  filter(!(second %in% stop_words$word))
+
+print(paste('There are', nrow(ngrams), 'bigrams without stopwords'))
 ```
 
-# Relationships between words: n-grams and correlations
+Even after removing the n-grams that contain stopwords, there are still nearly 12,000 results. We can count the occurrences of each unique pair in order to reduce this number and get a better idea of what bigrams are important.
 
-# Latent Direchlet Allocation
+```{r}
+# find the number of occurrences for each pair
+# take the top 50
+ngrams <- ngrams %>%
+  group_by(first, second) %>%
+  summarize(n=n()) %>%
+  arrange(desc(n)) %>%
+  head(50)
 
-- Intro to Topic Modeling
-   - similar to clustering numeric data
-   - topics are clusters of words
-   - goal is to discover latent patterns in documents
-   - Examples
-      - Apply it to a large batch of emails to understand what topics were discussed
-      - Presidential speeches to identify themes
-      - Collection of tweets from a group to identify what topics people tweet about
-   - Latent Dirichlet allocation is an unsupervised method for finding topics in a collection of documents
-      - probabilistic generative model
-      - every document is a collection of topics
-      - every topic is a collection of words
-      - Documents are a mixture of topics ie document 1 is 60% of topic 1 and 40% of topic 2
-      - Topics are a mixture of words ie 10% apples, 5% oranges, etc (maybe the topic is fruit)
-   - Algorithm
-      - From the paper:
-         - Choose N from a poisson distribution
-         - Choose $\Theta$ from a multinomial distribution
-         - For each of the N words
-            - Choose a topic $z_n$ from the multinomial($\theta$) distribution
-            - Choose a word $w_n$ from $p(w_n|z_n,\beta)$, the probability of a word given the document
-      - In easier terms maybe:
-         - first, select k number of topics
-         - randomly assign each word in each document in each topic
-         - calculate proportion of words in document assigned to a topic
-         - calculate proportion of words assigned to topic across all topics
-         - Reassign word to new topic by using gibbes to sample the posterior
-         - Repeat sampling for a number of draws
-   - LDA Example: Randomly select 20 books from the top 10 authors gutenburg. How many authors are present?
-      - authors are topics
-      - books are documents
-      - Tune k with https://cran.r-project.org/web/packages/ldatuning/vignettes/topics.html
-         - Rather than fitting 10 models (k=1..10), use this package
-         - Discuss hyperparemeter tuning
-      - Identify and discuss one of the 4 criteria for evaluating each LDA model
+head(ngrams)
+```
+Since this text is from a novel, the most common pairs represent the names of characters who are frequently mentioned. Still, some other results may be interesting. We can visualize these by treating the bigrams as a directed graph.
 
-## LDA Example
-```{r, eval=FALSE}
-library(gutenbergr)
+```{r}
+# make a directed graph of bigrams
+g <- graph.data.frame(ngrams, directed=T)
+
+# display graph
+ggraph(g, layout='kk') +
+  geom_edge_link(arrow=arrow(angle=20, type='closed', length=unit(0.1, 'inches')),
+                 aes(color=n)) +
+  geom_node_point() +
+  geom_node_text(aes(label=name), size=2, vjust=1.5, hjust=1) +
+  scale_edge_color_gradient(low='red', high='blue')
+```
+
+# Topic Modeling: Latent Direchlet Allocation
+
+Topic modeling is an unsupervised method of clustering words from documents into topics. It is an unsupervised method because we do not have true labels for the topics, but our goal is to discover latent or hidden patterns in documents. It is similar idea to clustering numeric data. Topic modeling is great for finding patterns in large collections of documents. For example, if you were a paralegal and had a large batch of emails from discovery, you could use topic modeling to try to identify the topics people were writing about. Another example is if you were a researcher looking into what people tweeted about on Election day, you could use topic modeling to identify the themes of the tweets.
+
+One of the most popular methods for topic modeling is Latent Dirichlet Allocation. Latent Dirichlet Allocation is a probabilistic generative model where each document is a collection of topics and each topic is a collection of words [5]. For exaple, a document could be comprised of 60% of one topic and 40% of another topic. If a topic was made of 10% of the word apple, 5% of the word orange, etc, the topic could be fruit. Below is a graphical model of LDA:
+
+![LDA model](LDA model.png)
+
+$\alpha$ is a hyperparameter on the Dirichlet distribution, $\theta$ of topics in a document.
+
+$\beta$ is a  hyperparameter for the Dirichlet distribution of words in a particular document.
+
+$M$ represents the number of topics and $N$ represents the numbers
+
+$z$ is the topics and $w$ are the words. $w$ is shaded because it is a known variable.
+
+First you choose the values of your hyperparameters and $M$ the number of topics. For each of the $N$ words, we want to choose a topic $z_n$ from the multinomial ($\Theta$) distribution, which represdents the distribution of topics in each document. Then we want to choose a word $w_n$ from the conditional probability $p(w_n|z_n,\ebta)$ which is the probability of the word given the document. After going through each word and assigning the proprtion of words to topics and topics and documents, we repeat this process a specified number of times. Calculating the posterior is intractible, so we use Gibbes sampling to approximate the posterior distribution.
+
+To show how LDA can work in practice, let's consider an example. Say you have 20 book titles from the top 10 authors from the Gutenburg and want to know how many authors wrote the books and which books were written by the same author. We can use topic modeling to see how to cluster the books presumably into topics which represent the authors of the books.
+
+First we'll create an array of the author names.
+```{r}
 # Set of popular authors
 authors.popular <-
    c(
@@ -372,27 +448,41 @@ authors.popular <-
       "Stevenson, Robert Louis",
       "Carroll, Lewis"
    )
+```
 
-# Download all books by these authors
+
+Then we will get all books by these authors from the Gutenberg project. We will limit our selection to works written in English and ignore collection of works.
+
+```{r}
 books.authors.popular <- gutenberg_metadata %>%
    filter(
       author %in% authors.popular,
-      language == "en", # Only english
+      language == "en", # Only English works
       !str_detect(title, "Works"),  # Ignore collections of works
+      !str_detect(title, "Part"),
+      !str_detect(title, "Volume"),
+      !str_detect(title, "Chapters"),
       has_text,
       !str_detect(rights, "Copyright")
    ) %>%
-   distinct(title, .keep_all = TRUE) %>%
-   select(gutenberg_id, title)
+   distinct(title, .keep_all = TRUE) %>% # Remove duplicate titles
+   select(gutenberg_id, title, author)
+```
 
-# Select a random sample of 20
-books.selection <- books.metadata %>% sample_n(20)
+We will select a random sample of 20 books and download them.
+
+```{r}
+set.seed(750)
+books.selection <- books.authors.popular %>% sample_n(20)
 
 # Download the 20 books
 books.list <-
    books.selection$gutenberg_id %>% gutenberg_download(meta_fields = "title")
+```
 
-# Clean the text by removing blank rows
+Now we have the text of all 20 books in a dataframe with the id and title. We will need to remove blank rows of the text and convert to tidytext.
+
+```{r}
 books.text <- books.list %>%
    filter(text != '') %>% # Remove blank lines
    select(-gutenberg_id) %>% # Drop the id
@@ -401,24 +491,118 @@ books.text <- books.list %>%
 
 words.by.book <- books.text %>%
    unnest_tokens(word, text)
+```
 
-# Generate word counts for each word in our documents
+Now we need to get the count of words so we can turn our data into a Document Term Matrix. We will also remove stop words. 
+
+```{r}
 word.counts <- words.by.book %>%
    anti_join(stop_words) %>%
+   filter(
+   !str_detect(word, "[0-9]"),
+   !str_detect(word, "^_"),
+   ) %>%
    count(document, word, sort = TRUE) %>%
    ungroup()
 
 # Create a Document Term Matrix
-books_dtm <- word.counts %>%
+books.dtm <- word.counts %>%
    cast_dtm(document, word, n)
+```
 
-# Try a model with 5 authors
-books.lda <- LDA(books_dtm, k = 5, control = list(seed = 555))
+
+We can run LDA with the LDA function from the topicmodels package. We will also have to select a k for the number of topics (authors). Let's try 5.
+
+```{r}
+library(topicmodels)
+books.lda <- LDA(books.dtm, k = 5, control = list(seed = 555))
+```
+
+First, we can look at the probabilities of each word belonging to each topic. Convert the lda results to a tidy dataframe. This will have a row for each topic and term and its probability. Let's convert this into showing the 7 most likely words in each topic and graph it.
+```{r}
+books.topics <- tidy(books.lda, matrix = "beta")
+words.top <- books.topics %>% 
+   group_by(topic) %>%
+  top_n(7, beta) %>%
+  ungroup() %>%
+   mutate(term = reorder_within(term, beta, topic))
+
+ggplot(words.top, aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+ facet_wrap(~ topic, scales = "free") +
+ scale_y_reordered()
+
+```
+
+Let's look at some uncommon words or names in topic 1 such as "henry" and "stevenson"
+
+```{r}
+word.counts %>% filter(word == "henry")
+
+word.counts %>% filter(word=="stevenson")
+```
+"henry" appears most often in "The Master of Ballantrae: A Winter's Tale" and "stevenson" appears most often in "Essays of Robert Louis Stevenson". We don't know this now, but both of these books are by Robert Louis Stevenson, a good sign. However we don't know how many authors we have so ideally we can run this LDA model for every possible number of topics (authors) 1 to 10 and have some evaluation metric to determine which is the best "fit". We can use the ldatuning package to do this for us.
+
+```{r}
+library(ldatuning)
+topics.results <- FindTopicsNumber(
+      books.dtm,
+      topics = seq(1,10),
+      metrics = "Arun2010",
+      method = "Gibbs",
+)
+
+# Printresults
+topics.results %>% arrange(Arun2010)
+
+```
+
+We want to sleect k that is the smallest as the Arun2010 metric measure the K-L divergence and this value is higher for non-optimal values of k [7]. The lowest k is 8. We can run our LDA model again with k-8 and look at the top word probabilities again.
+
+```{r}
+books.lda.optimal <- LDA(books.dtm, k = 8, control = list(seed = 555))
+
+books.topics.optimal <- tidy(books.lda.optimal, matrix = "beta")
+words.top.optimal <- books.topics.optimal %>% 
+   group_by(topic) %>%
+  top_n(7, beta) %>%
+  ungroup() %>%
+   mutate(term = reorder_within(term, beta, topic))
+
+ggplot(words.top.optimal, aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+ facet_wrap(~ topic, scales = "free") +
+ scale_y_reordered()
+
+```
+
+We can also look at the composition of topics in each document. Since each document (book) is written by a different author (and not a mixture of authors), we expect that one topic for each book should stand out above the rest.
+
+```{r}
+books.docs.optimal <- tidy(books.lda.optimal, matrix = "gamma")
+books.docs.optimal
+
+books.docs.optimal %>%
+  mutate(document= reorder(document, gamma * topic)) %>%
+  ggplot(aes(factor(topic), gamma)) +
+  geom_boxplot() +
+  facet_wrap(~ document) +
+  labs(x = "topic", y = expression(gamma))
+```
+
+Let's compare the number of unique authors in our set to the k we selected.
+
+```{r}
+
+books.selection %>% distinct(author) %>% count()
+
+```
+
 
 # TODO:
-# - Show some visualizations of words and topics and the associated probabilities
-# - Tune k with ldatuning package
-# - Show results and evaluate if we chose the correct k
+# - Revise LDA section
+# - Update graphics to make new ones rather than following tidy text
+# - Finish the example lda. Discuss if it grouped books into comon authors
 
 ```
 
@@ -438,3 +622,5 @@ books.lda <- LDA(books_dtm, k = 5, control = list(seed = 555))
 6. [TF-IDF](https://cran.r-project.org/web/packages/tidytext/vignettes/tf_idf.html) 
 
 7. [Loughran Sentiment Dataset](https://www.rdocumentation.org/packages/tidytext/versions/0.2.0/topics/sentiments)
+
+8. [On Finding the Natural Number of Topics with Latent Dirichlet Allocation] (https://doi.org/10.1007/978-3-642-13657-3_43)
