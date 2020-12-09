@@ -414,15 +414,15 @@ Notice that these n-grams can contain stopwords, so it is often a good idea to f
 
 ```{r}
 # download book text
-ttc <- gutenberg_download(98)['text']
+two_cities <- gutenberg_download(98)['text']
 # remove blank spaces
-ttc <- ttc[ttc$text!='',]
+two_cities <- two_cities[two_cities$text!='',]
 # remove header material
-ttc <- ttc[53:nrow(ttc),]
+two_cities <- two_cities[53:nrow(two_cities),]
 
 # find all size 2 n-grams
 # filter out pairs with stopwords
-ngrams <- unnest_tokens(ttc, ngram, text, token='ngrams', n=2) %>%
+ngrams <- unnest_tokens(two_cities, ngram, text, token='ngrams', n=2) %>%
   separate(col=ngram, into=c('first','second'), sep=' ') %>%
   filter(!(first %in% stop_words$word)) %>%
   filter(!(second %in% stop_words$word))
