@@ -68,7 +68,7 @@ dickens <- gutenberg_works(author == 'Dickens, Charles')
 dim(dickens)
 head(dickens)
 ```
-
+************************************
 
 ```{r}
 ## We will be working with A Tale of Two Cities, which has id 98
@@ -103,6 +103,7 @@ stop_two_cities <- tidy_two_cities %>% anti_join(stop_words, by = c("word" = "wo
 ## How many words were removed?
 dim(tidy_two_cities)[1] - dim(stop_two_cities)[1]
 ```
+********************************************** Should we do A Tale of Two Cities after the TF-IDF and before sentiment, more consistant.
 
 # TF-IDF
 
@@ -201,7 +202,15 @@ two_cities <- two_cities %>% group_by(book) %>%
 tidy_two_cities <- two_cities %>% unnest_tokens(word, text)
 head(tidy_two_cities)
 ```
+## Stop words
 
+```{r}
+## Error arose: https://stackoverflow.com/questions/9221310/r-debugging-only-0s-may-be-mixed-with-negative-subscripts
+data(stop_words)
+stop_two_cities <- tidy_two_cities %>% anti_join(stop_words, by = c("word" = "word"))
+## How many words were removed?
+dim(tidy_two_cities)[1] - dim(stop_two_cities)[1]
+```
 
 # Sentiment Analysis
 
