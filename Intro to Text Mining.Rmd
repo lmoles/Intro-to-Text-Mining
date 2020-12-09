@@ -5,7 +5,7 @@ output:
  html_document:
    toc: TRUE
    theme: united
-   toc_depth: 3
+   toc_depth: 2
    number_sections: TRUE
    df_print: paged
 ---
@@ -67,8 +67,31 @@ library(ggraph)
 dickens <- gutenberg_works(author == 'Dickens, Charles')
 dim(dickens)
 head(dickens)
-
 ```
+
+
+```{r}
+## We will be working with A Tale of Two Cities, which has id 98
+two_cities <- gutenberg_download(98)
+head(two_cities)
+
+## There are three books that make up this book
+## Get book number
+two_cities <- two_cities %>% mutate(book = cumsum(str_detect(text, regex("^Book the"))),
+                                    linenumber = row_number())
+
+## For each book get the linenumber in the book, and the chapter
+## Roman numerals: https://www.oreilly.com/library/view/regular-expressions-cookbook/9780596802837/ch06s09.html
+two_cities <- two_cities %>% group_by(book) %>% 
+   mutate(book_linenumber = row_number(),
+          chapter = cumsum(str_detect(text, regex("^(?=[MDCLXVI])M*(C[MD]|D?C{0,3})(X[CL]|L?X{0,3})(I[XV]|V?I{0,3})[.]")))) %>%
+   ungroup()
+
+## Convert to tidy text
+tidy_two_cities <- two_cities %>% unnest_tokens(word, text)
+head(tidy_two_cities)
+```
+
 ## Stop words
 
 ```{r}
@@ -110,6 +133,7 @@ tidy_dickens <- dickens_books %>%
 
 head(tidy_dickens)
 ```
+
 ```{r}
 tidy_dickens %>%
     count(title, word, sort = TRUE) %>%
@@ -181,48 +205,66 @@ head(tidy_two_cities)
 
 # Sentiment Analysis
 
+People are expressing their emotions now more than ever using the internet which provides plenty of data for researchers to use. Sentiment analysis is the process of analyzing the emotions of a given text. Some examples of sentiment analysis are analyzing tweets to analyze sentiments towards a political candidate, prioritize angry customer requests, gauge brand reputation, and ______. Depending on the aim of your analysis, you can use one of several lexicons provided by the tidytext package to analyze the sentiment of a text. Below are the four lexicons provided by the tidytext package: 
+
 Now that we have a book to work with, how do we determine the sentiment of the words in this book? 
 
 ## Sentiment Lexicons 
 
 Within the tidytext library there are three lexicons for use:
 
-1. AFINN - assigns each token a sentiment between -5 and 5
+1. Bing - classifies words as positive or negative
+   * 6783 words
+   * 3 words have duplicate sentiment categories (envious, enviously, enviousness)
+   * Analyze generic sentiment about a text 
+
+2. AFINN - assigns each token a sentiment between -5 and 5
+   * 2477 words 
    * Gives a sense of degree of positivity or negativity 
+   * Words do not have a duplicate sentiment values
 
-2. Bing - groups words into a positive or negative category
+3. NRC - groups words into one of 10 different sentiment categories: {Anger, Anticipation, Disgust, Fear, Joy, Negative, Positive, Sadness, Surprise, Trust}
+   * 6468 words
+   * 3688 words have duplicate sentiment categories 
+      * Because words have different meanings depending on the context, words can fall into different sentiment categories so there will be duplicates in the dataset
+   * Evaluate emotion
 
-3. Loughran - groups words into one of 6 different sentiment categories: {Constraining, Litigious, Negative, Positive, Superfluous, Uncertainty}
+4. Loughran - groups words into one of 6 different sentiment categories: {Constraining, Litigious, Negative, Positive, Superfluous, Uncertainty}
+   * 3917 words
    * Primarily used for financial text
-
-4. NRC - groups words into one of 10 different sentiment categories: {Anger, Anticipation, Disgust, Fear, Joy, Negative, Positive, Sadness, Surprise, Trust}
+   * 227 words have duplicate sentiment categories
+      
 
    
 ## Working with the sentiment lexicons
 
 Because words can have different meanings depending on the context, words can fall into different sentiment categories so there are duplicates in the datasets.
 
-```{r, message = FALSE}
+```{r, message = FALSE, eval = FALSE}
 ## Sentiment lexicons
 afinn <- get_sentiments('afinn')
+afinn %>% distinct(word)
 afinn %>% 
   group_by(word) %>% 
   summarize(ndups = n_distinct(value)) %>% 
   filter(ndups>1)
 
 bing <- get_sentiments('bing')
+bing %>% distinct(word)
 bing %>% 
   group_by(word) %>% 
   summarize(ndups = n_distinct(sentiment)) %>% 
   filter(ndups>1)
 
 loughran <- get_sentiments('loughran')
+loughran %>% distinct(word)
 loughran %>% 
   group_by(word) %>% 
   summarize(ndups = n_distinct(sentiment)) %>% 
   filter(ndups>1)
 
 nrc <- get_sentiments('nrc')
+nrc %>% distinct(word)
 nrc %>% 
   group_by(word) %>% 
   summarize(ndups = n_distinct(sentiment)) %>% 
@@ -624,3 +666,5 @@ books.selection %>% distinct(author) %>% count()
 7. [Loughran Sentiment Dataset](https://www.rdocumentation.org/packages/tidytext/versions/0.2.0/topics/sentiments)
 
 8. [On Finding the Natural Number of Topics with Latent Dirichlet Allocation] (https://doi.org/10.1007/978-3-642-13657-3_43)
+
+9. [Sentiment Analysis](https://monkeylearn.com/sentiment-analysis/)
