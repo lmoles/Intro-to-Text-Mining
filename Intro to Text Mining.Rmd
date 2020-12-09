@@ -326,7 +326,7 @@ ggarrange(overall_bing, overall_afinn, ncol = 2)
 ```
 
 ```{r}
-## Sentiment of each book using Bing
+## Sentiment of each chapter using Bing
 chapter_bing <- bing_two_cities %>% 
    filter(book > 0 & chapter > 0) %>% 
    group_by(book, chapter) %>% 
@@ -345,7 +345,7 @@ chapter_bing_plot <- chapter_bing %>%
    ggtitle("Bing Sentiment by Book and Chapter") + 
    theme(plot.title = element_text(hjust = 0.5))
 
-## Sentiment of each book using Bing
+## Sentiment of each chapter using AFINN
 chapter_afinn <- afinn_two_cities %>% 
    filter(book > 0 & chapter > 0) %>% 
    group_by(book, chapter) %>% 
@@ -365,31 +365,6 @@ chapter_afinn_plot <- chapter_afinn %>%
 ## Print these two plots side by side
 ggarrange(chapter_bing_plot, chapter_afinn_plot, ncol = 2)
 ```
-
-```{r}
-afinn_two_cities %>% filter(book == 2 & chapter == 10) %>% ggplot() + 
-   geom_density(aes(afinn))
-```
-
-
-```{r}
-positive_combos <- chapter_afinn %>% filter(average_sentiment > 0) %>% select(combo)
-
-afinn_two_cities %>% filter(book > 0 & chapter > 0) %>% 
-   group_by(book, chapter) %>% 
-   arrange(book, chapter) %>% 
-   mutate(combo = cur_group_id()) %>%
-   filter(combo %in% positive_combos$combo) %>% 
-   group_by(book, chapter) %>% 
-   summarize(num_pos = sum(afinn > 0),
-             num_neg = sum(afinn < 0),
-             mean_pos = mean(afinn))
-
-
-```
-
-
-
 
 Disadvantages of looking at words individually is that you cannot look at how they work together to form a sentence. In English, a double negative creates a positive. 
 
