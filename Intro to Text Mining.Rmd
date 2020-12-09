@@ -446,6 +446,35 @@ ggraph(g, layout='kk') +
   scale_edge_color_gradient(low='red', high='blue')
 ```
 
+## Bigram TF-IDF
+
+We can also calculate teh TF-IDF scores for bigrams in the works of Charles Dickens. This shows the most important pairs of words for each book.
+
+```{r, out.width = "100%"}
+dickens_books <- gutenberg_download(c(98, 1400, 46, 730, 766, 786), meta_fields = "title")
+## Tokenizing all the bigrams in the 6 books
+tidy_dickens <- dickens_books %>%
+  unnest_tokens(ngram, text, token='ngrams', n=2)
+## Visualization of the 10 bigrams with the highest TF-IDF in each book
+tidy_dickens %>%
+   count(title, ngram, sort = TRUE) %>%
+   bind_tf_idf(ngram, title, n) %>%
+   arrange(-tf_idf) %>%
+   group_by(title) %>%
+   top_n(10) %>%
+   ungroup %>%
+   mutate(ngram = reorder(ngram, tf_idf)) %>%
+   ggplot(aes(ngram, tf_idf, fill = title)) +
+   geom_col(show.legend = FALSE) +
+   facet_wrap(~ title, scales = "free") +
+   coord_flip() +
+   labs(y = "TF-IDF", 
+        x = "", 
+        title = "Ten Bigrams with Highest TF-IDF in Each Book") +
+   theme(plot.title = element_text(hjust = 0.5),
+         plot.subtitle = element_text(hjust = 0.5))
+```
+
 # Topic Modeling
 
 Topic modeling is an unsupervised method of clustering words from documents into topics. It is unsupervised because we do not know the true topics for the words, but our goal is to discover latent or hidden patterns in the collection of documents. It is similar to clustering numeric data. One example of a use case is if you were a paralegal and had a large batch of emails from discovery, you could use topic modeling to try to identify the topics people were writing about without having to read every document. 
