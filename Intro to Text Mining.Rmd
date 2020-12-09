@@ -12,6 +12,8 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
 ```
 
 # Preliminaries
@@ -433,13 +435,17 @@ ggraph(g, layout='kk') +
   scale_edge_color_gradient(low='red', high='blue')
 ```
 
-# Topic Modeling: Latent Direchlet Allocation
+# Topic Modeling
 
-Topic modeling is an unsupervised method of clustering words from documents into topics. It is an unsupervised because we do not know the true labels for the words, but our goal is to discover latent or hidden patterns in the collection of documents. It is a similar idea to clustering numeric data. For example, if you were a paralegal and had a large batch of emails from discovery, you could use topic modeling to try to identify the topics people were writing about without having to read every document. 
+Topic modeling is an unsupervised method of clustering words from documents into topics. It is unsupervised because we do not know the true topics for the words, but our goal is to discover latent or hidden patterns in the collection of documents. It is similar to clustering numeric data. One example of a use case is if you were a paralegal and had a large batch of emails from discovery, you could use topic modeling to try to identify the topics people were writing about without having to read every document. 
+
+
+## Latent Direchlet Allocation
 
 One of the most popular methods for topic modeling is Latent Dirichlet Allocation. Latent Dirichlet Allocation is a probabilistic generative model where each document is a collection of topics and each topic is a collection of words [5]. For example, a document could be comprised of 60% of one topic and 40% of another topic. By looking at the collection of words in a topic, you could infer the meaning. If the first topic was made of 40% of the word apple, 25% of the word orange, etc. the topic could be fruit. Below is a graphical model of LDA:
 
-![LDA model](LDA model.png)
+
+![](LDA model.png)
 
 $\alpha$ is a hyperparameter on the Dirichlet distribution of $\theta$, and $theta$ is the probabilities of topics in documents.
 
@@ -449,11 +455,15 @@ $M$ represents the number of topics and $N$ represents the number of words.
 
 $z$ are the topics and $w$ are the words. $w$ is shaded because it is a known variable.
 
-For the LDA model, first you choose the values of your hyperparameters and, $M$, the number of topics. For each of the $N$ words, we want to choose a topic $z_n$ from the multinomial ($\Theta$) distribution, which represents the distribution of topics in each document. Then we want to choose a word $w_n$ from the conditional probability $p(w_n|z_n,\ebta)$ which is the probability of the word given the document. After going through each word and assigning the proportion of words to topics and topics and documents, we repeat this process a specified number of times. Calculating the posterior is intractable, so we use Gibbes sampling to approximate the posterior distribution.
+For the LDA model, first you choose the values of your hyperparameters and, $M$, the number of topics. For each of the $N$ words, we want to choose a topic $z_n$ from the multinomial ($\Theta$) distribution, which represents the distribution of topics in each document. Then we want to choose a word $w_n$ from the conditional probability $p(w_n|z_n,\ebta)$ which is the probability of the word given the document. After going through each word and assigning the proportion of words to topics and topics to documents, we repeat this process a specified number of times. 
 
-To show how LDA can work in practice, let's consider an example. Say you have 20 book titles from the top 10 authors from the Project Gutenberg and want to know how many distinct authors wrote the 20 books and which books were written by the same author. We can use topic modeling to see how to cluster the books into topics which presumably represent the authors of the books.
+## Example: Clustering Books by Author
 
-First we'll create an array of the author names.
+To show how LDA can work in practice, let's consider an example. Say you have 20 book titles from the top 10 authors from the Project Gutenberg and want to know how many distinct authors wrote the set of books and which books were written by the same author. We can use topic modeling to cluster the books into topics which presumably represent the authors of the books.
+
+### Obtaining and Preparing the Texts
+
+First we'll create an array of the popular author names and then obtain all books by these authors from Project Gutenberg. We will limit our selection to works written in English and ignore collections and parts of works.
 
 ```{r}
 # Set of popular authors
@@ -470,12 +480,6 @@ authors.popular <-
       "Stevenson, Robert Louis",
       "Carroll, Lewis"
    )
-```
-
-
-Then we will get all books by these authors from Project Gutenberg. We will limit our selection to works written in English and ignore collection of works.
-
-```{r}
 
 # Create list of words that appear in titles to remove parts of books, collections, and letters of the author
 ignore.strings <- c("Works", "Part", "Volume", "Chapters", "From \"", "From:")
@@ -492,7 +496,7 @@ books.authors.popular <- gutenberg_metadata %>%
    select(gutenberg_id, title, author)
 ```
 
-We will select a random sample of 20 books and download them.
+Next, select a random sample of 20 books and download them.
 
 ```{r}
 set.seed(905)
@@ -503,7 +507,7 @@ books.list <-
    books.selection$gutenberg_id %>% gutenberg_download(meta_fields = "title")
 ```
 
-Now we have the text of all 20 books in a data frame. We will need to remove blank rows of the text and use unnest_tokens from the tidytext package to split our columns of text into one word per row for each document.
+Now we have the text of all 20 books in a data frame. We will need to remove blank rows of the text and use the unnest_tokens function from the tidytext package to split our columns of text into one word per row for each document.
 
 ```{r}
 books.text <- books.list %>%
@@ -516,7 +520,7 @@ words.by.book <- books.text %>%
    unnest_tokens(word, text)
 ```
 
-Now we need to get the count of words so we can turn our data into a Document Term Matrix so we can run a LDA model. We will also remove stop words. 
+Next we will calculate how many times each word appears in each document so we can turn our data into a Document Term Matrix to run the LDA model. We will also remove stop words. 
 
 ```{r}
 word.counts <- words.by.book %>%
@@ -533,15 +537,16 @@ books.dtm <- word.counts %>%
    cast_dtm(document, word, n)
 ```
 
+### LDA Model
 
-To run the LDA modelel from the topicmodels package, we will also have to select a k for the number of topics (authors). Let's try 5.
+To run the LDA model from the topicmodels package, we will also have to select a k for the number of topics (authors). Let's try 5 and set a seed for reproducibility.
 
 ```{r}
 library(topicmodels)
 books.lda <- LDA(books.dtm, k = 5, control = list(seed = 600))
 ```
 
-First, we can look at the probabilities of each word belonging to each topic. After convert the lda results to a tidy data frame, there will be a row for each topic and term and its probability. Let's convert this into showing the 7 most likely words in each topic and graph it.
+First, we can look at the probabilities of each word belonging to each topic. After converting the LDA results to a tidy data frame, there will be a row for each topic and term and its probability. Let's graph the 7 most likely words in each topic.
 
 ```{r}
 books.topics <- tidy(books.lda, matrix = "beta")
@@ -552,13 +557,13 @@ words.top <- books.topics %>%
    mutate(term = reorder_within(term, beta, topic))
 
 ggplot(words.top, aes(beta, term, fill = factor(topic))) +
-  geom_col(show.legend = FALSE) +
+ geom_col(show.legend = FALSE) +
  facet_wrap(~ topic, scales = "free") +
  scale_y_reordered()
 
 ```
 
-Let's look at some uncommon words or names in topic 1 such as "dombey" and "florence"
+Let's look at some uncommon words or names in topic 1 such as "dombey" and "florence".
 
 ```{r}
 word.counts %>% filter(word == "dombey")
@@ -566,12 +571,12 @@ word.counts %>% filter(word == "dombey")
 word.counts %>% filter(word=="florence")
 ```
 
-"domebey" and "florence" both appear most often from Dombey and Son so it is a good sign that they are grouped to the same topic as only one author wrote each book. We don't know how many authors we have so ideally we can run this LDA model for every possible number of topics (authors) 1 to 10 and have some evaluation metric to determine which is the best "fit". We can use the ldatuning package to do this for us.
+"domebey" and "florence" both appear most often from "Dombey and Son" so it is a good sign that words from the same document are grouped in the same topic. We don't know how many authors we have so ideally we can run this LDA model for every possible number of topics, 1 to 10, and use an evaluation metric to determine which is the best "fit" for the different clusters. We can use the ldatuning package to do this for us. The package provides a metric called "Arun2010" that we will use to determine which k to use for our model. We want to select k that is the smallest as this metric measures the K-L divergence and this value is higher for non-optimal values of k [8].
 
 ```{r}
-set.seed(455)
 topics.results <- FindTopicsNumber(
       books.dtm,
+      control=list(seed = 455),
       topics = seq(1,10),
       metrics = "Arun2010",
       method = "Gibbs",
@@ -582,7 +587,9 @@ topics.results %>% arrange(Arun2010)
 
 ```
 
-We want to select k that is the smallest as the Arun2010 metric measure the K-L divergence and this value is higher for non-optimal values of k [7]. The lowest k is 8. We can run our LDA model again with k=8 and look at the top word probabilities again.
+### Results
+
+The k will the lowest Arun2010 score is 8 from so we will run our LDA model again with k=8 and look at the top word probabilities and see how they have changed.
 
 ```{r}
 books.lda.optimal <- LDA(books.dtm, k = 8, control = list(seed = 555))
@@ -601,7 +608,7 @@ ggplot(words.top.optimal, aes(beta, term, fill = factor(topic))) +
 
 ```
 
-We can also look at the composition of topics in each document by extracting the gamma values from our LDA model. Since each book (document) is written by a different author (topic), we expect that each document should be made up of only one topic. This holds true for almost all the books and every book has 1 dominant topic.
+We can also look at the composition of topics in each document by extracting the gamma values from our LDA model. The gamma values represent the mixtures of topics for each document. Since each book (document) is written by a different author (topic), we expect that each document should be made up of only one topic. This holds true for almost all the books and every book has 1 dominant topic.
 
 ```{r}
 books.docs.optimal <- tidy(books.lda.optimal, matrix = "gamma")
@@ -614,10 +621,10 @@ books.docs.optimal %>%
 
 ```
 
-Let's compare the number of unique authors in our set to the k we selected. Let's also look at the authors in each topic to see how LDA groups them. 
+Let's compare the number of unique authors in our 20 books to the k we selected. Also we will examine the authors in each topic to see how LDA groups them. 
 
 ```{r}
-books.selection %>% distinct(author) %>% count()
+as.numeric(books.selection %>% distinct(author) %>% count())
 
 books.docs.optimal %>% 
    group_by(document) %>%  # Group by each book
@@ -629,7 +636,9 @@ books.docs.optimal %>%
 
 ```
 
-Our LDA model did not quite put distinct authors into each topic. Some topics contained multiples of the same author. For example the second topic contains 2 books by Robert Stevenson, but it contains a third book by Arthur Doyle. Topics 5 and 6 only have one book both by Charles Dickens. This is a small dataset, only 20 books, so the model may not have enough examples for each author to distinguish between them. Even though we used the same number of topics as authors, LDA finds latent patterns in text, which can be different than what we expect. Examining the common and rare words in each topic can gives clues to how the model is clustering documents.
+
+We did select the same number of topics as authors in our book set, but our LDA model did not quite put the distinct authors into each topic. Some topics contained multiples of the same author such as the second topic contains 2 books by Robert Stevenson, but it contains a third book by Arthur Doyle. Topics 5 and 6 only have one book and they are written by by Charles Dickens. The model may not have enough examples for each author to distinguish between them as we only used 20 books. Even though we used the same number of topics as authors, LDA finds latent patterns in text, which can be different than what we expect. One way to try to identify the meaning of the topics is to examine common and rare words and identify similarities between them and consider their source.
+
 
 ```
 
