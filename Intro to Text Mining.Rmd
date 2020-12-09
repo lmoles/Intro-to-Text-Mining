@@ -94,7 +94,7 @@ head(tidy_two_cities)
 
 ## Stop words
 
-```{r eval=FALSE}
+```{r}
 ## Error arose: https://stackoverflow.com/questions/9221310/r-debugging-only-0s-may-be-mixed-with-negative-subscripts
 data(stop_words)
 
@@ -298,7 +298,6 @@ Overall sentiment = positive words / total words
 
 ```{r}
 ## Join sentiments with Tale of Two Cities
-stop_two_cities <- tidy_two_cities %>% anti_join(stop_words, by = c("word" = "word"))
 bing_two_cities <- stop_two_cities %>% left_join(bing, by = c('word' = 'word')) %>% rename('bing' = 'sentiment')
 
 ## How many words have an associated bing sentiment?
