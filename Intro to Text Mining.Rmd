@@ -654,10 +654,6 @@ books.docs.optimal %>%
 
 We did select the same number of topics as authors in our book set, but our LDA model did not quite put the distinct authors into each topic. Some topics contained multiples of the same author such as the second topic contains 2 books by Robert Stevenson, but it contains a third book by Arthur Doyle. Topics 5 and 6 only have one book and they are written by by Charles Dickens. The model may not have enough examples for each author to distinguish between them as we only used 20 books. Even though we used the same number of topics as authors, LDA finds latent patterns in text, which can be different than what we expect. One way to try to identify the meaning of the topics is to examine common and rare words and identify similarities between them and consider their source.
 
-
-```
-
-
 # References
 
 1. [Text Mining with R](https://www.tidytextmining.com/index.html)
