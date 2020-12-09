@@ -22,7 +22,7 @@ knitr::opts_chunk$set(message = FALSE)
 
 We will be using the following R packages: 
 
-```{r, warning = FALSE, message = FALSE, tidy = TRUE}
+```{r, tidy = TRUE}
 library(tidyverse)
 library(tidytext)
 library(gutenbergr)
@@ -32,7 +32,8 @@ library(ggraph)
 library(topicmodels)
 library(ldatuning)
 library(ggpubr)
-#install.packages('textdata')
+library(topicmodels)
+
 data(stop_words)
 ```
 
@@ -542,7 +543,6 @@ books.dtm <- word.counts %>%
 To run the LDA model from the topicmodels package, we will also have to select a k for the number of topics (authors). Let's try 5 and set a seed for reproducibility.
 
 ```{r}
-library(topicmodels)
 books.lda <- LDA(books.dtm, k = 5, control = list(seed = 600))
 ```
 
