@@ -94,7 +94,7 @@ head(tidy_two_cities)
 
 ## Stop words
 
-```{r}
+```{r eval=FALSE}
 ## Error arose: https://stackoverflow.com/questions/9221310/r-debugging-only-0s-may-be-mixed-with-negative-subscripts
 data(stop_words)
 
@@ -298,6 +298,7 @@ Overall sentiment = positive words / total words
 
 ```{r}
 ## Join sentiments with Tale of Two Cities
+stop_two_cities <- tidy_two_cities %>% anti_join(stop_words, by = c("word" = "word"))
 bing_two_cities <- stop_two_cities %>% left_join(bing, by = c('word' = 'word')) %>% rename('bing' = 'sentiment')
 
 ## How many words have an associated bing sentiment?
@@ -504,6 +505,8 @@ books.authors.popular <- gutenberg_metadata %>%
       !str_detect(title, "Part"),
       !str_detect(title, "Volume"),
       !str_detect(title, "Chapters"),
+      !str_detect(title, "From \""), # Remove snippets of works
+      !str_detect(title, "From:"),
       has_text,
       !str_detect(rights, "Copyright")
    ) %>%
@@ -514,7 +517,7 @@ books.authors.popular <- gutenberg_metadata %>%
 We will select a random sample of 20 books and download them.
 
 ```{r}
-set.seed(750)
+set.seed(905)
 books.selection <- books.authors.popular %>% sample_n(20)
 
 # Download the 20 books
@@ -539,10 +542,10 @@ Now we need to get the count of words so we can turn our data into a Document Te
 
 ```{r}
 word.counts <- words.by.book %>%
-   anti_join(stop_words) %>%
+   anti_join(stop_words) %>% # Remove stop words
    filter(
-   !str_detect(word, "[0-9]"),
-   !str_detect(word, "^_"),
+   !str_detect(word, "[0-9]"), # Remove words that are numbers
+   !str_detect(word, "^_"), # Remove text that starts with an underscore
    ) %>%
    count(document, word, sort = TRUE) %>%
    ungroup()
@@ -557,7 +560,7 @@ We can run LDA with the LDA function from the topicmodels package. We will also 
 
 ```{r}
 library(topicmodels)
-books.lda <- LDA(books.dtm, k = 5, control = list(seed = 555))
+books.lda <- LDA(books.dtm, k = 5, control = list(seed = 600))
 ```
 
 First, we can look at the probabilities of each word belonging to each topic. Convert the lda results to a tidy dataframe. This will have a row for each topic and term and its probability. Let's convert this into showing the 7 most likely words in each topic and graph it.
@@ -565,8 +568,8 @@ First, we can look at the probabilities of each word belonging to each topic. Co
 books.topics <- tidy(books.lda, matrix = "beta")
 words.top <- books.topics %>% 
    group_by(topic) %>%
-  top_n(7, beta) %>%
-  ungroup() %>%
+   top_n(7, beta) %>%
+   ungroup() %>%
    mutate(term = reorder_within(term, beta, topic))
 
 ggplot(words.top, aes(beta, term, fill = factor(topic))) +
@@ -579,13 +582,14 @@ ggplot(words.top, aes(beta, term, fill = factor(topic))) +
 Let's look at some uncommon words or names in topic 1 such as "henry" and "stevenson"
 
 ```{r}
-word.counts %>% filter(word == "henry")
+word.counts %>% filter(word == "dombey")
 
-word.counts %>% filter(word=="stevenson")
+word.counts %>% filter(word=="florence")
 ```
-"henry" appears most often in "The Master of Ballantrae: A Winter's Tale" and "stevenson" appears most often in "Essays of Robert Louis Stevenson". We don't know this now, but both of these books are by Robert Louis Stevenson, a good sign. However we don't know how many authors we have so ideally we can run this LDA model for every possible number of topics (authors) 1 to 10 and have some evaluation metric to determine which is the best "fit". We can use the ldatuning package to do this for us.
+"domebey" and "florence" both appear most often from Dombey and Son and it is a good sign that they are grouped to the same topic as only one author wrote each book. We don't know how many authors we have so ideally we can run this LDA model for every possible number of topics (authors) 1 to 10 and have some evaluation metric to determine which is the best "fit". We can use the ldatuning package to do this for us.
 
 ```{r}
+set.seed(455)
 library(ldatuning)
 topics.results <- FindTopicsNumber(
       books.dtm,
@@ -594,12 +598,12 @@ topics.results <- FindTopicsNumber(
       method = "Gibbs",
 )
 
-# Printresults
+# Print results
 topics.results %>% arrange(Arun2010)
 
 ```
 
-We want to sleect k that is the smallest as the Arun2010 metric measure the K-L divergence and this value is higher for non-optimal values of k [7]. The lowest k is 8. We can run our LDA model again with k-8 and look at the top word probabilities again.
+We want to select k that is the smallest as the Arun2010 metric measure the K-L divergence and this value is higher for non-optimal values of k [7]. The lowest k is 8. We can run our LDA model again with k-8 and look at the top word probabilities again.
 
 ```{r}
 books.lda.optimal <- LDA(books.dtm, k = 8, control = list(seed = 555))
@@ -607,8 +611,8 @@ books.lda.optimal <- LDA(books.dtm, k = 8, control = list(seed = 555))
 books.topics.optimal <- tidy(books.lda.optimal, matrix = "beta")
 words.top.optimal <- books.topics.optimal %>% 
    group_by(topic) %>%
-  top_n(7, beta) %>%
-  ungroup() %>%
+   top_n(7, beta) %>%
+   ungroup() %>%
    mutate(term = reorder_within(term, beta, topic))
 
 ggplot(words.top.optimal, aes(beta, term, fill = factor(topic))) +
@@ -624,27 +628,28 @@ We can also look at the composition of topics in each document. Since each docum
 books.docs.optimal <- tidy(books.lda.optimal, matrix = "gamma")
 books.docs.optimal
 
-books.docs.optimal %>%
-  mutate(document= reorder(document, gamma * topic)) %>%
-  ggplot(aes(factor(topic), gamma)) +
-  geom_boxplot() +
-  facet_wrap(~ document) +
-  labs(x = "topic", y = expression(gamma))
+# TODO: Visualization
+books.docs.optimal %>% 
+   group_by(document) %>%  # Group by each book
+   top_n(n=1) %>% # Select the max gamma for each book
+   select(gamma, document) %>%
+   arrange(-gamma)
 ```
 
-Let's compare the number of unique authors in our set to the k we selected.
+Let's compare the number of unique authors in our set to the k we selected. Let's also look at the authors in each topic to see how LDA group them. 
 
 ```{r}
-
 books.selection %>% distinct(author) %>% count()
 
+books.docs.optimal %>% 
+   group_by(document) %>%  # Group by each book
+   top_n(n=1) %>% # Select the max gamma for each book
+   rename("title"="document")  %>% # rename document to title to join on the authors
+   left_join(books.selection) %>%
+   select (-gutenberg_id)
 ```
 
-
-# TODO:
-# - Revise LDA section
-# - Update graphics to make new ones rather than following tidy text
-# - Finish the example lda. Discuss if it grouped books into comon authors
+In some cases the topics contained the same author, such as topic 2 contains 2 books by Robert Stevenson, but it contains a third book by Arthur Coyle. Topics 5 and 6 only contained one book both by Charles Dickens. Even though we used the same number of topics as authors, LDA finds latent patterns in text, which may not always be apparent to us.
 
 ```
 
