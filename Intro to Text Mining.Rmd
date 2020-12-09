@@ -388,17 +388,19 @@ and the tri-grams are:
 Notice that these n-grams can contain stopwords, so it is often a good idea to filter out any results that include at least one. In practice, we can mine text for all n-grams with lengths between some specified min and max, but here we start by extracting the bigrams from *A Tale of Two Cities*.
 
 ```{r}
-# download book text
+## Download book text
 two_cities <- gutenberg_download(98)['text']
-# remove blank spaces
-two_cities <- two_cities[two_cities$text!='',]
-# remove header material
-two_cities <- two_cities[53:nrow(two_cities),]
 
-# find all size 2 n-grams
-# filter out pairs with stopwords
-ngrams <- unnest_tokens(two_cities, ngram, text, token='ngrams', n=2) %>%
-  separate(col=ngram, into=c('first','second'), sep=' ') %>%
+## Remove blank spaces
+two_cities <- two_cities[two_cities$text != '',]
+
+## Remove header material
+two_cities <- two_cities[53:nrow(two_cities), ]
+
+## Find all size 2 n-grams
+## Filter out pairs with stopwords
+ngrams <- unnest_tokens(two_cities, ngram, text, token = 'ngrams', n = 2) %>%
+  separate(col = ngram, into = c('first', 'second'), sep = ' ') %>%
   filter(!(first %in% stop_words$word)) %>%
   filter(!(second %in% stop_words$word))
 
@@ -408,23 +410,24 @@ print(paste('There are', nrow(ngrams), 'bigrams without stopwords'))
 Even after removing the n-grams that contain stopwords, there are still nearly 12,000 results. We can count the occurrences of each unique pair in order to reduce this number and get a better idea of what bigrams are important.
 
 ```{r}
-# find the number of occurrences for each pair
-# take the top 50
+## Find the number of occurrences for each pair
+## Take the top 50
 ngrams <- ngrams %>%
   group_by(first, second) %>%
   summarize(n=n()) %>%
   arrange(desc(n)) %>%
-  head(50)
+  head(50) %>% 
+  ungroup()
 
 head(ngrams)
 ```
 Since this text is from a novel, the most common pairs represent the names of characters who are frequently mentioned. Still, some other results may be interesting. We can visualize these by treating the bigrams as a directed graph.
 
 ```{r}
-# make a directed graph of bigrams
+## Make a directed graph of bigrams
 g <- graph.data.frame(ngrams, directed=T)
 
-# display graph
+## Display graph
 ggraph(g, layout='kk') +
   geom_edge_link(arrow=arrow(angle=20, type='closed', length=unit(0.1, 'inches')),
                  aes(color=n)) +
@@ -456,7 +459,7 @@ To show how LDA can work in practice, let's consider an example. Say you have 20
 First we'll create an array of the author names.
 
 ```{r}
-# Set of popular authors
+## Set of popular authors
 authors.popular <-
    c(
       "Dickens, Charles",
@@ -476,10 +479,10 @@ authors.popular <-
 Then we will get all books by these authors from Project Gutenberg. We will limit our selection to works written in English and ignore collection of works.
 
 ```{r}
-
-# Create list of words that appear in titles to remove parts of books, collections, and letters of the author
+## Create list of words that appear in titles to remove parts of books, collections, and letters of the author
 ignore.strings <- c("Works", "Part", "Volume", "Chapters", "From \"", "From:")
 
+## Get books from the popular authors listed above
 books.authors.popular <- gutenberg_metadata %>%
    filter(
       author %in% authors.popular,
@@ -495,10 +498,11 @@ books.authors.popular <- gutenberg_metadata %>%
 We will select a random sample of 20 books and download them.
 
 ```{r}
+## Sample 20 books from the books from populaor authos
 set.seed(905)
 books.selection <- books.authors.popular %>% sample_n(20)
 
-# Download the 20 books
+## Download the 20 books
 books.list <-
    books.selection$gutenberg_id %>% gutenberg_download(meta_fields = "title")
 ```
@@ -506,19 +510,23 @@ books.list <-
 Now we have the text of all 20 books in a data frame. We will need to remove blank rows of the text and use unnest_tokens from the tidytext package to split our columns of text into one word per row for each document.
 
 ```{r}
+## Clean the data from the selected books
 books.text <- books.list %>%
    filter(text != '') %>% # Remove blank lines
    select(-gutenberg_id) %>% # Drop the id
    group_by(title)  %>%
    unite(document, title)
 
+## Perform tokenization
 words.by.book <- books.text %>%
    unnest_tokens(word, text)
 ```
 
 Now we need to get the count of words so we can turn our data into a Document Term Matrix so we can run a LDA model. We will also remove stop words. 
 
-```{r}
+```{r, message = FALSE}
+## Remove stop words, numbers, and text that begins with an underscores
+## Then get the frequency of each of these words
 word.counts <- words.by.book %>%
    anti_join(stop_words) %>% # Remove stop words
    filter(
@@ -528,20 +536,20 @@ word.counts <- words.by.book %>%
    count(document, word, sort = TRUE) %>%
    ungroup()
 
-# Create a Document Term Matrix
+## Create a Document Term Matrix
 books.dtm <- word.counts %>%
    cast_dtm(document, word, n)
 ```
 
 
-To run the LDA modelel from the topicmodels package, we will also have to select a k for the number of topics (authors). Let's try 5.
+To run the LDA model from the topicmodels package, we will also have to select a k for the number of topics (authors). Let's try 5.
 
 ```{r}
-library(topicmodels)
+## Run an LDA model
 books.lda <- LDA(books.dtm, k = 5, control = list(seed = 600))
 ```
 
-First, we can look at the probabilities of each word belonging to each topic. After convert the lda results to a tidy data frame, there will be a row for each topic and term and its probability. Let's convert this into showing the 7 most likely words in each topic and graph it.
+First, we can look at the probabilities of each word belonging to each topic. After convert the LDA results to a tidy data frame, there will be a row for each topic and term and its probability. Let's convert this into showing the 7 most likely words in each topic and graph it.
 
 ```{r}
 books.topics <- tidy(books.lda, matrix = "beta")
