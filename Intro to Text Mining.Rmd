@@ -228,7 +228,6 @@ dim(two_cities)[1] - dim(tidy_two_cities)[1]
 dim(tidy_two_cities)[1]
 ```
 
-
 ### Overall sentiment of A Tale of Two Cities
 
 We will begin by examining the overall sentiment of A Tale of Two Cities, we will do this by considering the sentiment all of the words excluding stop words. 
@@ -291,85 +290,108 @@ mean(afinn_two_cities$afinn)
 After analyzing the overall sentiment of A Tale of Two Cities, let's now analyze how the sentiment changes over time. We will do this by looking at the sentiment each chapter of the three books that make up A Tale of Two Cities. 
 
 ```{r, fig.align = 'center'}
+## Make book a category instead of a numeric
+bing_two_cities$book <- as.character(bing_two_cities$book)
+afinn_two_cities$book <- as.character(afinn_two_cities$book)
+
 ## Sentiment of each book using Bing
-book_bing <- bing_two_cities %>% 
+overall_bing <- bing_two_cities %>% 
    group_by(book) %>% 
    summarize(num_pos = sum(bing == "positive"),
              num_neg = sum(bing == "negative"),
              sentiment = num_pos - num_neg) %>% 
    filter(book > 0) %>%
    ggplot() + 
-   geom_bar(aes(x = book, y = sentiment), stat = 'identity', fill = "#6F58B8") + 
+   geom_bar(aes(x = book, y = sentiment, fill = book), stat = 'identity', show.legend = FALSE) + 
    xlab("Book") + 
    ylab("Bing Sentiment") +
    ggtitle("Bing Sentiment by Book") + 
    theme(plot.title = element_text(hjust = 0.5))
 
-## Sentiment of each book
-book_afinn <- afinn_two_cities %>% 
+## Sentiment of each book using AFINN
+overall_afinn <- afinn_two_cities %>% 
    group_by(book) %>% 
    summarize(average_sentiment = mean(afinn)) %>% 
    filter(book > 0) %>%
    ggplot() + 
-   geom_bar(aes(x = book, y = average_sentiment), stat = 'identity', fill = "#6F58B8") + 
+   geom_bar(aes(x = book, y = average_sentiment, fill = book), stat = 'identity', show.legend = FALSE) + 
    xlab("Book") + 
    ylab("AFINN Sentiment") +
    ggtitle("AFINN Sentiment by Book") + 
    theme(plot.title = element_text(hjust = 0.5))
 
+## Print these two plots side by side
 ## https://sebastiansauer.github.io/two-plots-rmd/
-ggarrange(book_bing, book_afinn, ncol = 2)
+ggarrange(overall_bing, overall_afinn, ncol = 2)
+```
+
+```{r}
+## Sentiment of each book using Bing
+chapter_bing <- bing_two_cities %>% 
+   filter(book > 0 & chapter > 0) %>% 
+   group_by(book, chapter) %>% 
+   arrange(book, chapter) %>% 
+   summarize(combo = cur_group_id(),
+             num_pos = sum(bing == "positive"),
+             num_neg = sum(bing == "negative"),
+             sentiment = num_pos - num_neg) %>%
+   ungroup()
+
+chapter_bing_plot <- chapter_bing %>%
+   ggplot() + 
+   geom_bar(aes(x = combo, y = sentiment, fill = book), stat = 'identity', show.legend = FALSE) + 
+   xlab("Chapter") + 
+   ylab("Bing Sentiment") +
+   ggtitle("Bing Sentiment by Book and Chapter") + 
+   theme(plot.title = element_text(hjust = 0.5))
+
+## Sentiment of each book using Bing
+chapter_afinn <- afinn_two_cities %>% 
+   filter(book > 0 & chapter > 0) %>% 
+   group_by(book, chapter) %>% 
+   arrange(book, chapter) %>% 
+   summarize(combo = cur_group_id(),
+             average_sentiment = mean(afinn)) %>%
+   ungroup()
+
+chapter_afinn_plot <- chapter_afinn %>% 
+   ggplot() + 
+   geom_bar(aes(x = combo, y = average_sentiment, fill = book), stat = 'identity') + 
+   xlab("Chapter") + 
+   ylab("AFINN Sentiment") +
+   ggtitle("AFINN Sentiment by Book and Chapter") + 
+   theme(plot.title = element_text(hjust = 0.5))
+
+## Print these two plots side by side
+ggarrange(chapter_bing_plot, chapter_afinn_plot, ncol = 2)
+```
+
+```{r}
+afinn_two_cities %>% filter(book == 2 & chapter == 10) %>% ggplot() + 
+   geom_density(aes(afinn))
 ```
 
 
 ```{r}
-## Sentiment of each chapter of each book
-afinn_two_cities %>% 
+positive_combos <- chapter_afinn %>% filter(average_sentiment > 0) %>% select(combo)
+
+afinn_two_cities %>% filter(book > 0 & chapter > 0) %>% 
    group_by(book, chapter) %>% 
-   summarize(average_sentiment = mean(afinn)) %>% 
-   filter(book > 0)
-
-## Look at graphical representation of sentiment over time
-afinn_two_cities %>% group_by(book, book_linenumber) %>% 
-   summarize(book_linenumber = book_linenumber %/% 50,
-             average_sentiment = mean(afinn)) %>% 
-   filter(book > 0) %>% 
-   ggplot() + 
-   geom_bar(aes(x = book_linenumber, y = average_sentiment, fill = book), stat = 'identity', show.legend = FALSE) + 
-   facet_wrap(~book, ncol = 1, scales = 'free_x')
-
-## Sentiment of each book
-bing_two_cities %>% 
-   group_by(book) %>% 
-   summarize(num_pos = sum(bing == "positive"),
-             num_neg = sum(bing == "negative"),
-             sentiment = num_pos - num_neg, 
-             average_sentiment = sum(bing == "positive")/n()) %>% 
-   filter(book > 0)
-
-## Sentiment of each chapter of each book
-bing_two_cities %>% 
+   arrange(book, chapter) %>% 
+   mutate(combo = cur_group_id()) %>%
+   filter(combo %in% positive_combos$combo) %>% 
    group_by(book, chapter) %>% 
-   summarize(num_pos = sum(bing == "positive"),
-             num_neg = sum(bing == "negative"),
-             sentiment = num_pos - num_neg,
-             average_sentiment = sum(bing == "positive")/n()) %>% 
-   filter(book > 0)
+   summarize(num_pos = sum(afinn > 0),
+             num_neg = sum(afinn < 0),
+             mean_pos = mean(afinn))
 
-## Look at graphical representation of sentiment over time
-bing_two_cities %>% group_by(book, book_linenumber) %>% 
-   summarize(book_linenumber = book_linenumber%/%50,
-             num_pos = sum(bing == "positve"),
-             num_neg = sum(bing == "negative"),
-             sentiment = num_pos - num_neg,
-             average_sentiment = sum(bing == "positive")/n()) %>% 
-   filter(book > 0) %>% 
-   ggplot() + 
-   geom_col(aes(x = book_linenumber, y = sentiment, fill = book), show.legend = FALSE) + 
-   facet_wrap(~book, ncol = 1, scales = 'free_x')
+
 ```
 
-Disadvantages of looking at words individually is that you cannot look at how they work together to form a sentance. In English, a double negative creates a positive. 
+
+
+
+Disadvantages of looking at words individually is that you cannot look at how they work together to form a sentence. In English, a double negative creates a positive. 
 
 
 
@@ -632,7 +654,7 @@ books.docs.optimal %>%
 
 ```
 
-Our LDA model did not quite put distinct authors into each topic. Some topics contained multiples of the same author. For example the second topic contains 2 books by Robert Stevenson, but it contains a third book by Arthur Coyle. Topics 5 and 6 only have one book both by Charles Dickens. This is a small dataset, only 20 books, so the model may not have enough examples for each author to distinguish between them. Even though we used the same number of topics as authors, LDA finds latent patterns in text, which can be different than what we expect. Examining the common and rare words in each topic can gives clues to how the model is clustering documents.
+Our LDA model did not quite put distinct authors into each topic. Some topics contained multiples of the same author. For example the second topic contains 2 books by Robert Stevenson, but it contains a third book by Arthur Doyle. Topics 5 and 6 only have one book both by Charles Dickens. This is a small dataset, only 20 books, so the model may not have enough examples for each author to distinguish between them. Even though we used the same number of topics as authors, LDA finds latent patterns in text, which can be different than what we expect. Examining the common and rare words in each topic can gives clues to how the model is clustering documents.
 
 ```
 
