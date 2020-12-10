@@ -592,27 +592,28 @@ books.dtm <- word.counts %>%
 
 ### LDA Model
 
-To run the LDA model from the topicmodels package, we will also have to select a k for the number of topics (authors). Let's try 5.
+To run the LDA model from the topicmodels package, we will also have to select a $k$ for the number of topics (authors). Let's try 5.
 
 ```{r}
 ## Run an LDA model with k = 5
 books.lda <- LDA(books.dtm, k = 5, control = list(seed = 600))
 ```
 
-First, we can look at the probabilities of each word belonging to each topic. After converting the LDA results to a tidy data frame, there will be a row for each topic and term and its probability. Let's graph the 7 most likely words in each topic. #TODO: Write what beta means
+After running the model, we can obtain the probabilities of each word belonging to each topic from the beta matrix in tidy. This is the conditional probability $p(w_n|z_n,\beta)$ from the graphical LDA model. It will return a row for every word and topic and the associated probability. Let's graph the 7 most likely words in each topic.
 
 ```{r}
-books.topics <- tidy(books.lda, matrix = "beta")
+## Source: https://www.tidytextmining.com/topicmodeling.html#word-topic-probabilities
+books.topics <- tidy(books.lda, matrix = "beta") # Extract beta - the probability a word comes from a topic
 words.top <- books.topics %>% 
    group_by(topic) %>%
-   top_n(7, beta) %>%
+   top_n(7, beta) %>% # Get the top 7 probabilities in each topic
    ungroup() %>%
-   mutate(term = reorder_within(term, beta, topic))
+   mutate(term = reorder_within(term, beta, topic)) # Sort the betas within each topic
 
 ggplot(words.top, aes(beta, term, fill = factor(topic))) +
- geom_col(show.legend = FALSE) +
- facet_wrap(~ topic, scales = "free") +
- scale_y_reordered()
+   facet_wrap(~ topic, scales = "free") +
+   scale_y_reordered() + 
+   geom_col(show.legend = FALSE)
 
 ```
 
@@ -624,9 +625,10 @@ word.counts %>% filter(word == "dombey")
 word.counts %>% filter(word=="florence")
 ```
 
-"domebey" and "florence" both appear most often from *Dombey and Son* so it is a good sign that words from the same document are grouped in the same topic. We know we have up to 10 authors, but we do not know the exact number because we sampled from their works. We need to run run this LDA model for every possible number of topics, 1 to 10, and use an evaluation metric to determine which is the best "fit" for the different clusters. We can use the ldatuning package to do this for us. The package provides a metric called "Arun2010" that we will use to determine which k to use for our model. We want to select k that is the smallest as this metric measures the K-L divergence and this value is higher for non-optimal values of k [8].
+"domebey" and "florence" both appear most often from *Dombey and Son* so it is a good sign that words from the same document are grouped in the same topic. We know we have up to 10 authors, but we do not know the exact number because we sampled from all of their works. We need to run run this LDA model for every possible number of topics, 1 to 10, and use an evaluation metric to determine which is the best "fit" for the different clusters. We can use the ldatuning package to do this for us. The package provides a metric called "Arun2010" that we will use to determine which k to use for our model. We want to select k that is the smallest as this metric measures the K-L divergence and this value is higher for non-optimal values of $k$ [8].
 
 ```{r}
+## Find the optimal number of topics trying k=1 to k=10 and print the result
 topics.results <- FindTopicsNumber(
       books.dtm,
       control=list(seed = 455),
@@ -635,50 +637,55 @@ topics.results <- FindTopicsNumber(
       method = "Gibbs",
 )
 
-# Print results
+## Sort by the Arun2010 metric ascending
 topics.results %>% arrange(Arun2010)
 
 ```
 
 ### Results
 
-The k will the lowest Arun2010 score is 8 from so we will run our LDA model again with k=8 and look at the top word probabilities and see how they have changed. (TODO: Mention how they change)
+The k with the lowest Arun2010 score is 8 so we will run our LDA model again with $k=8$ and look at the top word probabilities and see how they have changed. Topic 1 when $k=5$ is now topic 6, except "toots" replaces "head" as one of the likely words to appear in that topic. Topic 4 in the $k=8$ model contains words that were not the most likely in any topics in the $k=5$ model such as "mother", "dear", and "vernon". 
 
 ```{r}
 books.lda.optimal <- LDA(books.dtm, k = 8, control = list(seed = 555))
 
-books.topics.optimal <- tidy(books.lda.optimal, matrix = "beta")
+books.topics.optimal <- tidy(books.lda.optimal, matrix = "beta") # Extract beta - the probability a word comes from a topic
+
 words.top.optimal <- books.topics.optimal %>% 
    group_by(topic) %>%
-   top_n(7, beta) %>%
+   top_n(7, beta) %>% # Get the top 7 probabilities in each topic
    ungroup() %>%
-   mutate(term = reorder_within(term, beta, topic))
+   mutate(term = reorder_within(term, beta, topic))  # Sort the betas within each topic
 
 ggplot(words.top.optimal, aes(beta, term, fill = factor(topic))) +
-  geom_col(show.legend = FALSE) +
- facet_wrap(~ topic, scales = "free") +
- scale_y_reordered()
+   facet_wrap(~ topic, scales = "free") +
+   scale_y_reordered() +
+   geom_col(show.legend = FALSE) 
 
 ```
 
-We can also look at the composition of topics in each document by extracting the gamma (TODO: connect how its theta above, but gamma in the package) values from our LDA model. The gamma values represent the mixtures of topics for each document. Since each book (document) is written by a different author (topic), we expect that each document should be made up of only one topic. This holds true for almost all the books and every book has 1 dominant topic.
+We can also look at the composition of topics in each document by extracting the gamma values from our LDA model, which represents the probability of a topic given the document. This is $\theta$ in the LDA graphical model in the previous section. Since each book (document) is written by a different author (topic), we expect that each document should be made up of only one topic. This holds true for almost all the books and every book has 1 dominant topic.
 
 ```{r}
+## Get the topic probabilities given the document
 books.docs.optimal <- tidy(books.lda.optimal, matrix = "gamma")
 
+## Plot the composition of topics of each document
 books.docs.optimal %>% 
    group_by(document) %>%  # Group by each book
    ggplot(aes(x=str_trunc(document, 30), y=gamma, fill=factor(topic))) +
-   geom_bar(stat='identity') + coord_flip() +
+   geom_bar(stat='identity') + 
+   coord_flip() + # Plot horizontally
    labs(title="Composition of Topics in Documents", x="document", fill = "topic")
 
 ```
 
-Let's compare the number of unique authors in our 20 books to the k we selected. Also we will examine the authors in each topic to see how LDA groups them. 
+Let's compare the number of unique authors in our 20 books to the $k$ we selected. Also we will examine the authors in each topic to see how LDA groups them. 
 
 ```{r}
 as.numeric(books.selection %>% distinct(author) %>% count())
 
+## Create a table of topics and authors
 books.docs.optimal %>% 
    group_by(document) %>%  # Group by each book
    top_n(n=1) %>% # Select the max gamma for each book
