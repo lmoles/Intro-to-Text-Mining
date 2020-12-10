@@ -634,9 +634,8 @@ words.top <- books.topics %>%
 ggplot(words.top, aes(beta, term, fill = factor(topic))) +
    facet_wrap(~ topic, scales = "free") +
    scale_y_reordered() + 
-   geom_col(show.legend = FALSE) + 
-   xlab("Beta") + 
-   ylab("Term")
+   geom_col(show.legend = FALSE) +
+   labs(title="Most Likely Words in Each Topic", x = "Beta", y = "Term")
 ```
 
 Let's look at some interesting words or names in topic 1 such as "dombey" and "florence".
@@ -686,8 +685,7 @@ ggplot(words.top.optimal, aes(beta, term, fill = factor(topic))) +
    facet_wrap(~ topic, scales = "free") +
    scale_y_reordered() +
    geom_col(show.legend = FALSE) + 
-   xlab("Beta") + 
-   ylab("Term")
+   labs(title="Most Likely Words in Each Topic", x = "Beta", y = "Term")
 ```
 
 We can also look at the composition of topics in each document by extracting the gamma values from our LDA model, which represents the probability of a topic given the document. This is $\theta$ in the LDA graphical model in the previous section. Since each book (document) is written by a different author (topic), we expect that each document should be made up of only one topic. This holds true for almost all the books and every book has 1 dominant topic.
@@ -702,7 +700,7 @@ books.docs.optimal %>%
    ggplot(aes(x=str_trunc(document, 30), y=gamma, fill=factor(topic))) +
    geom_bar(stat='identity') + 
    coord_flip() + # Plot horizontally
-   labs(title="Composition of Topics in Documents", x="document", fill = "topic")
+   labs(title = "Composition of Topics in Documents", x = "Document", y = "Gamma", fill = "topic")
 ```
 
 Let's compare the number of unique authors in our 20 books to the $k$ we selected. Also we will examine the authors in each topic to see how LDA groups them. 
