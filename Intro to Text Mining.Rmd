@@ -610,7 +610,7 @@ To run the LDA model from the topicmodels package, we will also have to select a
 books.lda <- LDA(books.dtm, k = 5, control = list(seed = 600))
 ```
 
-After running the model, we can obtain the probabilities of each word belonging to each topic from the beta matrix in tidy. This is the conditional probability $p(w_n|z_n,\beta)$ from the graphical LDA model. It will return a row for every word and topic and the associated probability. Let's graph the 7 most likely words in each topic.
+After running the model, we can obtain the probabilities of each word belonging to each topic from the beta matrix in tidy. This is the conditional probability $p(w_n|z_n,\beta)$ in the graphical LDA model. It will return a row for every word and topic and the associated probability. Let's graph the 7 most likely words in each topic.
 
 ```{r}
 ## Source: https://www.tidytextmining.com/topicmodeling.html#word-topic-probabilities
@@ -636,7 +636,7 @@ word.counts %>% filter(word == "dombey")
 word.counts %>% filter(word=="florence")
 ```
 
-"domebey" and "florence" both appear most often from *Dombey and Son* so it is a good sign that words from the same document are grouped in the same topic. We know we have up to 10 authors, but we do not know the exact number because we sampled from all of their works. We need to run run this LDA model for every possible number of topics, 1 to 10, and use an evaluation metric to determine which is the best "fit" for the different clusters. We can use the ldatuning package to do this for us. The package provides a metric called "Arun2010" that we will use to determine which k to use for our model. We want to select k that is the smallest as this metric measures the K-L divergence and this value is higher for non-optimal values of $k$ [8].
+"domebey" and "florence" both appear most often from *Dombey and Son* so it is a good sign that words from the same document are grouped in the same topic. We know we have up to 10 authors, but we do not know the exact number because we sampled from all of their works. We need to run this LDA model for each possible number of authors and use an evaluation metric to determine which is the best "fit" for the different clusters. We can use the ldatuning package to do this for us. The package provides a metric called "Arun2010" that we will use to determine which k to use for our model. We want to select $k$ that is the smallest as this metric measures the K-L divergence and this value is higher for non-optimal values of $k$ [8].
 
 ```{r}
 ## Find the optimal number of topics trying k=1 to k=10 and print the result
@@ -655,7 +655,7 @@ topics.results %>% arrange(Arun2010)
 
 ### Results
 
-The k with the lowest Arun2010 score is 8 so we will run our LDA model again with $k=8$ and look at the top word probabilities and see how they have changed. Topic 1 when $k=5$ is now topic 6, except "toots" replaces "head" as one of the likely words to appear in that topic. Topic 4 in the $k=8$ model contains words that were not the most likely in any topics in the $k=5$ model such as "mother", "dear", and "vernon". 
+The k with the lowest Arun2010 score is 8 so we will run our LDA model again with $k=8$ and look at the top word probabilities and see how they have changed. Topic 1 when $k=5$ is now topic 6, except "toots" replaces "head" as one of the likely words to appear in that topic. Topic 4 in the $k=8$ model contains words that were not the most likely for any topics in the $k=5$ model such as "mother", "dear", and "vernon". 
 
 ```{r}
 books.lda.optimal <- LDA(books.dtm, k = 8, control = list(seed = 555))
@@ -700,7 +700,7 @@ as.numeric(books.selection %>% distinct(author) %>% count())
 books.docs.optimal %>% 
    group_by(document) %>%  # Group by each book
    top_n(n=1) %>% # Select the max gamma for each book
-   rename("title"="document")  %>% # rename document to title to join on the authors
+   rename("title"="document")  %>% # Rename document to title to join on the authors
    left_join(books.selection) %>%
    group_by(topic) %>%
    summarise(authors = paste(author, collapse="; ")) # Combine the authors for each topic into one row
