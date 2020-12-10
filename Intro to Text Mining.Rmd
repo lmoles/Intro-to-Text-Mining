@@ -11,15 +11,15 @@ output:
 ---
 
 ```{r global_options, include=FALSE}
-knitr::opts_chunk$set(error=FALSE,          # Keep compiling upon error
-                      collapse=FALSE,       # collapse by default
-                      echo=TRUE,            # echo code by default
+knitr::opts_chunk$set(error=FALSE,          # keep compiling upon error
+                      collapse=FALSE,       # collapse
+                      echo=TRUE,            # echo code
                       fig.width = 10,       # set figure width
-                      fig.align = "center", # set figure position
+                      fig.align = "center", # center figure position
                       out.width = "100%",   # set width of displayed images
-                      warning=FALSE,        # show R warnings
-                      message=FALSE,        # show R messages
-                      cache = TRUE)      
+                      warning=FALSE,        # hide R warnings
+                      message=FALSE,        # hide R messages
+                      cache = TRUE)         # cache results for debugging
 options(dplyr.summarise.inform = FALSE)     # ignore message about group structure
 ```
 
@@ -403,7 +403,7 @@ and the tri-grams are:
 * quick brown fox
 * brown fox jumped
 
-Notice that these n-grams can contain stopwords, so it is often a good idea to filter out any results that include at least one. In practice, we can mine text for all n-grams with lengths between some specified min and max, but here we start by extracting the bi-grams from *A Tale of Two Cities*.
+Notice that these n-grams can contain stopwords, so it is often a good idea to filter out any results that include at least one. It is important, however, to mine n-grams before removing stopwords. Otherwise, the cleaning will alter the sequences of words and provide incorrect results. In practice, we can mine text for all n-grams with lengths between some specified minimum and maximum, but we start here by extracting the bi-grams from *A Tale of Two Cities*.
 
 ```{r}
 ## Download book text
@@ -417,10 +417,11 @@ two_cities <- two_cities[53:nrow(two_cities), ]
 
 ## Find all size 2 n-grams
 ## Filter out pairs with stopwords
+stopwords <- stop_words$word
 ngrams <- unnest_tokens(two_cities, ngram, text, token = 'ngrams', n = 2) %>%
   separate(col = ngram, into = c('first', 'second'), sep = ' ') %>%
-  filter(!(first %in% stop_words$word)) %>%
-  filter(!(second %in% stop_words$word))
+  filter(!(first %in% stopwords)) %>%
+  filter(!(second %in% stopwords))
 
 print(paste('There are', nrow(ngrams), 'bi-grams without stopwords'))
 ```
@@ -443,12 +444,19 @@ head(ngrams)
 Since this text is from a novel, the most common pairs represent the names of characters who are frequently mentioned. Still, some other results may be interesting. We can visualize these by treating the bi-grams as a directed graph.
 
 ```{r}
+## Reference for Bi-gram graph concept:
+## Text Mining with R: a Tidy Approach (O'Reilly)
+## Julia Sage, David Robinson
+
 ## Make a directed graph of bi-grams
 g <- graph.data.frame(ngrams, directed = TRUE)
 
 ## Display graph
+
+## Using ggraph package as recommended by reference
+## Graphing help at: https://www.data-imaginist.com/2017/ggraph-introduction-edges/
 ggraph(g, layout = 'kk') +
-  geom_edge_link(arrow=arrow(angle = 20, type = 'closed', length = unit(0.1, 'inches')),
+  geom_edge_link(arrow = arrow(angle = 20, type = 'closed', length = unit(0.1, 'inches')),
                  aes(color = n)) +
   geom_node_point() +
   geom_node_text(aes(label = name), size = 2, vjust = 1.5, hjust = 1) +
@@ -457,11 +465,13 @@ ggraph(g, layout = 'kk') +
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
-## Bi-gram TF-IDF
+The results show various isolated pairs corresponding to very specific bi-grams, but the more interesting sequences are those with overlapping words. These lead to larger connected clusters. The group of words in the bottom left of the graph seems to correspond to characters with similar names, or possibly frequent interaction. Expanding on this concept can lead to tree structures of text or generative methods, but those are beyond the scope of this tutorial.
+
+## TF-IDF with Bi-Grams
 
 We can also calculate the TF-IDF scores for bi-grams in the works of Charles Dickens. This shows the most important pairs of words for each book.
 
-```{r, out.width = "100%"}
+```{r}
 dickens_books <- gutenberg_download(c(98, 1400, 46, 730, 766, 786), meta_fields = "title")
 
 ## Tokenizing all the bi-grams in the 6 books
@@ -487,6 +497,8 @@ tidy_dickens %>%
    theme(plot.title = element_text(hjust = 0.5),
          plot.subtitle = element_text(hjust = 0.5))
 ```
+
+When we compare the results of TF-IDF here to the results with single word tokenization, we can see the emphasis on complete character names and, in some cases, actions of characters. By including stopwords in this, we also have the opportunity to see words that would never be significant on their own, but can be important as part of a sequence.
 
 # Topic Modeling
 
@@ -598,31 +610,33 @@ books.dtm <- word.counts %>%
 
 ### LDA Model
 
-To run the LDA model from the topicmodels package, we will also have to select a k for the number of topics (authors). Let's try 5.
+To run the LDA model from the topicmodels package, we will also have to select a $k$ for the number of topics (authors). Let's try 5.
 
 ```{r}
 ## Run an LDA model with k = 5
 books.lda <- LDA(books.dtm, k = 5, control = list(seed = 600))
 ```
 
-First, we can look at the probabilities of each word belonging to each topic. After converting the LDA results to a tidy data frame, there will be a row for each topic and term and its probability. Let's convert this into showing the 7 most likely words in each topic and graph it.
+After running the model, we can obtain the probabilities of each word belonging to each topic from the beta matrix in tidy. This is the conditional probability $p(w_n|z_n,\beta)$ in the graphical LDA model. It will return a row for every word and topic and the associated probability. Let's graph the 7 most likely words in each topic.
 
 ```{r}
 ## Identify the 7 most likely words in each topic
-books.topics <- tidy(books.lda, matrix = "beta")
+## Source: https://www.tidytextmining.com/topicmodeling.html#word-topic-probabilities
+books.topics <- tidy(books.lda, matrix = "beta") # Extract beta - the probability a word comes from a topic
+
 words.top <- books.topics %>% 
    group_by(topic) %>%
-   top_n(7, beta) %>%
+   top_n(7, beta) %>% # Get the top 7 probabilities in each topic
    ungroup() %>%
-   mutate(term = reorder_within(term, beta, topic))
+   mutate(term = reorder_within(term, beta, topic)) # Sort the betas within each topic
 
 ## Visualize the 7 most likely words in each topic
 ggplot(words.top, aes(beta, term, fill = factor(topic))) +
- geom_col(show.legend = FALSE) +
- facet_wrap(~topic, scales = "free") +
- scale_y_reordered() + 
- xlab("Beta") + 
- ylab("Term")
+   facet_wrap(~ topic, scales = "free") +
+   scale_y_reordered() + 
+   geom_col(show.legend = FALSE) + 
+   xlab("Beta") + 
+   ylab("Term")
 ```
 
 Let's look at some interesting words or names in topic 1 such as "dombey" and "florence".
@@ -635,10 +649,10 @@ word.counts %>% filter(word == "dombey")
 word.counts %>% filter(word == "florence")
 ```
 
-"domebey" and "florence" both appear most often from *Dombey and Son* so it is a good sign that words from the same document are grouped in the same topic. We don't know how many authors we have so ideally we can run this LDA model for every possible number of topics, 1 to 10, and use an evaluation metric to determine which is the best "fit" for the different clusters. We can use the ldatuning package to do this for us. The package provides a metric called "Arun2010" that we will use to determine which k to use for our model. We want to select k that is the smallest as this metric measures the K-L divergence and this value is higher for non-optimal values of k [8].
+"domebey" and "florence" both appear most often from *Dombey and Son* so it is a good sign that words from the same document are grouped in the same topic. We know we have up to 10 authors, but we do not know the exact number because we sampled from all of their works. We need to run this LDA model for each possible number of authors and use an evaluation metric to determine which is the best "fit" for the different clusters. We can use the ldatuning package to do this for us. The package provides a metric called "Arun2010" that we will use to determine which k to use for our model. We want to select $k$ that is the smallest as this metric measures the K-L divergence and this value is higher for non-optimal values of $k$ [8].
 
 ```{r}
-## Run LDA using several different number of topics
+## Find the optimal number of topics trying k=1 to k=10 and print the result
 topics.results <- FindTopicsNumber(
       books.dtm,
       control = list(seed = 455),
@@ -647,64 +661,61 @@ topics.results <- FindTopicsNumber(
       method = "Gibbs"
 )
 
-## Print results
+## Sort by the Arun2010 metric ascending
 topics.results %>% arrange(Arun2010)
 ```
 
 ### Results
 
-The k will the lowest Arun2010 score is 8 from so we will run our LDA model again with k = 8 and look at the top word probabilities and see how they have changed.
+The k with the lowest Arun2010 score is 8 so we will run our LDA model again with $k = 8$ and look at the top word probabilities and see how they have changed. Topic 1 when $k = 5$ is now topic 6, except "toots" replaces "head" as one of the likely words to appear in that topic. Topic 4 in the $k = 8$ model contains words that were not the most likely for any topics in the $k = 5$ model such as "mother", "dear", and "vernon". 
 
 ```{r}
 ## Run LDA with optimal number of topics
 books.lda.optimal <- LDA(books.dtm, k = 8, control = list(seed = 555))
 
-## Identify the 7 most likely words in each topic
-books.topics.optimal <- tidy(books.lda.optimal, matrix = "beta")
+books.topics.optimal <- tidy(books.lda.optimal, matrix = "beta") # Extract beta - the probability a word comes from a topic
+
 words.top.optimal <- books.topics.optimal %>% 
    group_by(topic) %>%
-   top_n(7, beta) %>%
+   top_n(7, beta) %>% # Get the top 7 probabilities in each topic
    ungroup() %>%
-   mutate(term = reorder_within(term, beta, topic))
+   mutate(term = reorder_within(term, beta, topic))  # Sort the betas within each topic
 
 ## Visualize the 7 most likely words in each topic
 ggplot(words.top.optimal, aes(beta, term, fill = factor(topic))) +
-  geom_col(show.legend = FALSE) +
- facet_wrap(~topic, scales = "free") +
- scale_y_reordered() + 
- xlab("Beta") + 
- ylab("Term")
+   facet_wrap(~ topic, scales = "free") +
+   scale_y_reordered() +
+   geom_col(show.legend = FALSE) + 
+   xlab("Beta") + 
+   ylab("Term")
 ```
 
-We can also look at the composition of topics in each document by extracting the gamma values from our LDA model. The gamma values represent the mixtures of topics for each document. Since each book (document) is written by a different author (topic), we expect that each document should be made up of only one topic. This holds true for almost all the books and every book has 1 dominant topic.
+We can also look at the composition of topics in each document by extracting the gamma values from our LDA model, which represents the probability of a topic given the document. This is $\theta$ in the LDA graphical model in the previous section. Since each book (document) is written by a different author (topic), we expect that each document should be made up of only one topic. This holds true for almost all the books and every book has 1 dominant topic.
 
 ```{r}
-## Obtain composition of topics in each document
+## Get the topic probabilities given the document
 books.docs.optimal <- tidy(books.lda.optimal, matrix = "gamma")
 
-## Graph composition of topics in each document
+## Plot the composition of topics of each document
 books.docs.optimal %>% 
    group_by(document) %>%  # Group by each book
-   ggplot(aes(x = str_trunc(document, 30), y = gamma, fill = factor(topic))) +
-   geom_bar(stat = 'identity') + coord_flip() +
-   labs(title = "Composition of Topics in Documents", 
-        x = "Document", 
-        y = "Gamma", 
-        fill = "Topic") + 
-   theme(plot.title = element_text(hjust = 0.5))
+   ggplot(aes(x=str_trunc(document, 30), y=gamma, fill=factor(topic))) +
+   geom_bar(stat='identity') + 
+   coord_flip() + # Plot horizontally
+   labs(title="Composition of Topics in Documents", x="document", fill = "topic")
 ```
 
-Let's compare the number of unique authors in our 20 books to the k we selected. Also we will examine the authors in each topic to see how LDA groups them. 
+Let's compare the number of unique authors in our 20 books to the $k$ we selected. Also we will examine the authors in each topic to see how LDA groups them. 
 
 ```{r}
 ## How many authors did we sample in the beginning?
 as.numeric(books.selection %>% distinct(author) %>% count())
 
-## Create a table of which authors were in which topic
+## Create a table of topics and authors
 books.docs.optimal %>% 
    group_by(document) %>%  # Group by each book
-   top_n(n = 1) %>% # Select the max gamma for each book
-   rename("title" = "document")  %>% # rename document to title to join on the authors
+   top_n(n=1) %>% # Select the max gamma for each book
+   rename("title"="document")  %>% # Rename document to title to join on the authors
    left_join(books.selection) %>%
    group_by(topic) %>%
    summarise(authors = paste(author, collapse = "; ")) # Combine the authors for each topic into one row
