@@ -599,7 +599,7 @@ To run the LDA model from the topicmodels package, we will also have to select a
 books.lda <- LDA(books.dtm, k = 5, control = list(seed = 600))
 ```
 
-First, we can look at the probabilities of each word belonging to each topic. After converting the LDA results to a tidy data frame, there will be a row for each topic and term and its probability. Let's convert this into showing the 7 most likely words in each topic and graph it.
+First, we can look at the probabilities of each word belonging to each topic. After converting the LDA results to a tidy data frame, there will be a row for each topic and term and its probability. Let's graph the 7 most likely words in each topic. #TODO: Write what beta means
 
 ```{r}
 books.topics <- tidy(books.lda, matrix = "beta")
@@ -624,7 +624,7 @@ word.counts %>% filter(word == "dombey")
 word.counts %>% filter(word=="florence")
 ```
 
-"domebey" and "florence" both appear most often from *Dombey and Son* so it is a good sign that words from the same document are grouped in the same topic. We don't know how many authors we have so ideally we can run this LDA model for every possible number of topics, 1 to 10, and use an evaluation metric to determine which is the best "fit" for the different clusters. We can use the ldatuning package to do this for us. The package provides a metric called "Arun2010" that we will use to determine which k to use for our model. We want to select k that is the smallest as this metric measures the K-L divergence and this value is higher for non-optimal values of k [8].
+"domebey" and "florence" both appear most often from *Dombey and Son* so it is a good sign that words from the same document are grouped in the same topic. We know we have up to 10 authors, but we do not know the exact number because we sampled from their works. We need to run run this LDA model for every possible number of topics, 1 to 10, and use an evaluation metric to determine which is the best "fit" for the different clusters. We can use the ldatuning package to do this for us. The package provides a metric called "Arun2010" that we will use to determine which k to use for our model. We want to select k that is the smallest as this metric measures the K-L divergence and this value is higher for non-optimal values of k [8].
 
 ```{r}
 topics.results <- FindTopicsNumber(
@@ -642,7 +642,7 @@ topics.results %>% arrange(Arun2010)
 
 ### Results
 
-The k will the lowest Arun2010 score is 8 from so we will run our LDA model again with k=8 and look at the top word probabilities and see how they have changed.
+The k will the lowest Arun2010 score is 8 from so we will run our LDA model again with k=8 and look at the top word probabilities and see how they have changed. (TODO: Mention how they change)
 
 ```{r}
 books.lda.optimal <- LDA(books.dtm, k = 8, control = list(seed = 555))
@@ -661,7 +661,7 @@ ggplot(words.top.optimal, aes(beta, term, fill = factor(topic))) +
 
 ```
 
-We can also look at the composition of topics in each document by extracting the gamma values from our LDA model. The gamma values represent the mixtures of topics for each document. Since each book (document) is written by a different author (topic), we expect that each document should be made up of only one topic. This holds true for almost all the books and every book has 1 dominant topic.
+We can also look at the composition of topics in each document by extracting the gamma (TODO: connect how its theta above, but gamma in the package) values from our LDA model. The gamma values represent the mixtures of topics for each document. Since each book (document) is written by a different author (topic), we expect that each document should be made up of only one topic. This holds true for almost all the books and every book has 1 dominant topic.
 
 ```{r}
 books.docs.optimal <- tidy(books.lda.optimal, matrix = "gamma")
