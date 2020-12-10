@@ -652,7 +652,7 @@ word.counts %>% filter(word == "florence")
 "domebey" and "florence" both appear most often from *Dombey and Son* so it is a good sign that words from the same document are grouped in the same topic. We know we have up to 10 authors, but we do not know the exact number because we sampled from all of their works. We need to run this LDA model for each possible number of authors and use an evaluation metric to determine which is the best "fit" for the different clusters. We can use the ldatuning package to do this for us. The package provides a metric called "Arun2010" that we will use to determine which k to use for our model. We want to select $k$ that is the smallest as this metric measures the K-L divergence and this value is higher for non-optimal values of $k$ [8].
 
 ```{r}
-## Find the optimal number of topics trying k=1 to k=10 and print the result
+## Find the optimal number of topics trying k = 1 to k = 10 and print the result
 topics.results <- FindTopicsNumber(
       books.dtm,
       control = list(seed = 455),
