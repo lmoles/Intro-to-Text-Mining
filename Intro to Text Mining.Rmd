@@ -11,15 +11,15 @@ output:
 ---
 
 ```{r global_options, include=FALSE}
-knitr::opts_chunk$set(error=FALSE,          # Keep compiling upon error
-                      collapse=FALSE,       # collapse by default
-                      echo=TRUE,            # echo code by default
+knitr::opts_chunk$set(error=FALSE,          # keep compiling upon error
+                      collapse=FALSE,       # collapse
+                      echo=TRUE,            # echo code
                       fig.width = 10,       # set figure width
-                      fig.align = "center", # set figure position
+                      fig.align = "center", # center figure position
                       out.width = "100%",   # set width of displayed images
-                      warning=FALSE,        # show R warnings
-                      message=FALSE,        # show R messages
-                      cache = TRUE)      
+                      warning=FALSE,        # hide R warnings
+                      message=FALSE,        # hide R messages
+                      cache = TRUE)         # cache results for debugging
 options(dplyr.summarise.inform = FALSE)     # ignore message about group structure
 ```
 
@@ -399,7 +399,7 @@ and the tri-grams are:
 * quick brown fox
 * brown fox jumped
 
-Notice that these n-grams can contain stopwords, so it is often a good idea to filter out any results that include at least one. In practice, we can mine text for all n-grams with lengths between some specified min and max, but here we start by extracting the bi-grams from *A Tale of Two Cities*.
+Notice that these n-grams can contain stopwords, so it is often a good idea to filter out any results that include at least one. It is important, however, to mine n-grams before removing stopwords. Otherwise, the cleaning will alter the sequences of words and provide incorrect results. In practice, we can mine text for all n-grams with lengths between some specified minimum and maximum, but we start here by extracting the bi-grams from *A Tale of Two Cities*.
 
 ```{r}
 ## Download book text
@@ -413,10 +413,11 @@ two_cities <- two_cities[53:nrow(two_cities), ]
 
 ## Find all size 2 n-grams
 ## Filter out pairs with stopwords
+stopwords <- stop_words$word
 ngrams <- unnest_tokens(two_cities, ngram, text, token = 'ngrams', n = 2) %>%
   separate(col = ngram, into = c('first', 'second'), sep = ' ') %>%
-  filter(!(first %in% stop_words$word)) %>%
-  filter(!(second %in% stop_words$word))
+  filter(!(first %in% stopwords)) %>%
+  filter(!(second %in% stopwords))
 
 print(paste('There are', nrow(ngrams), 'bi-grams without stopwords'))
 ```
@@ -439,10 +440,16 @@ head(ngrams)
 Since this text is from a novel, the most common pairs represent the names of characters who are frequently mentioned. Still, some other results may be interesting. We can visualize these by treating the bi-grams as a directed graph.
 
 ```{r}
+## Reference for Bi-gram graph concept:
+## Text Mining with R: a Tidy Approach (O'Reilly)
+## Julia Sage, David Robinson
+
 ## Make a directed graph of bi-grams
 g <- graph.data.frame(ngrams, directed=T)
 
 ## Display graph
+## Using ggraph package as recommended by reference
+## Graphing help at: https://www.data-imaginist.com/2017/ggraph-introduction-edges/
 ggraph(g, layout='kk') +
   geom_edge_link(arrow=arrow(angle=20, type='closed', length=unit(0.1, 'inches')),
                  aes(color=n)) +
@@ -451,11 +458,13 @@ ggraph(g, layout='kk') +
   scale_edge_color_gradient(low='red', high='blue')
 ```
 
-## Bi-gram TF-IDF
+The results show various isolated pairs corresponding to very specific bi-grams, but the more interesting sequences are those with overlapping words. These lead to larger connected clusters. The group of words in the bottom left of the graph seems to correspond to characters with similar names, or possibly frequent interaction. Expanding on this concept can lead to tree structures of text or generative methods, but those are beyond the scope of this tutorial.
+
+## TF-IDF with Bi-Grams
 
 We can also calculate the TF-IDF scores for bi-grams in the works of Charles Dickens. This shows the most important pairs of words for each book.
 
-```{r, out.width = "100%"}
+```{r}
 dickens_books <- gutenberg_download(c(98, 1400, 46, 730, 766, 786), meta_fields = "title")
 
 ## Tokenizing all the bi-grams in the 6 books
@@ -481,6 +490,8 @@ tidy_dickens %>%
    theme(plot.title = element_text(hjust = 0.5),
          plot.subtitle = element_text(hjust = 0.5))
 ```
+
+When we compare the results of TF-IDF here to the results with single word tokenization, we can see the emphasis on complete character names and, in some cases, actions of characters. By including stopwords in this, we also have the opportunity to see words that would never be significant on their own, but can be important as part of a sequence.
 
 # Topic Modeling
 
