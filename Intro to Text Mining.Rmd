@@ -27,6 +27,8 @@ options(dplyr.summarise.inform = FALSE)     # ignore message about group structu
 
 This tutorial is intended for beginners to text mining with some knowledge of probability and R. 
 
+Link to GitHub repository: https://github.com/Marissa-Shand/Intro-to-Text-Mining
+
 ## Required R Packages
 
 We will be using the following R packages: 
@@ -63,7 +65,7 @@ A few examples of how we use text mining every day:
 
 **N-Gram:** a sequence of $n$ consecutive words or characters.
 
-**Token:** a meaningful unit of text, such as a word, that we are interested in using for analysis, and tokenization is the process of splitting text into tokens" [1]. Can be a word, n-gram, sentence or paragraph.
+**Token:** "a meaningful unit of text, such as a word, that we are interested in using for analysis" [1]. This can be a word, n-gram, sentence or paragraph.
 
 **Tokenization:** the process of splitting the whole data (corpus) into smaller chunks is known as tokenization. (i.e. sentences into words)
 
@@ -76,15 +78,15 @@ A few examples of how we use text mining every day:
 
 **How do we determine which words are the most important in a document?**
 
-* TF term is short for *term frequency* which indicates how frequently a word appears in a document. The document would most likely include unimportant words which we classified earlier as *stop words*, but removing the stop words would not be an efficient approach in this case because some of these words might be more important in some documents than others. 
+* TF term is short for *term frequency* which indicates how frequently a word appears in a document. The document most likely includes unimportant words which we classified earlier as *stop words*, but removing the stop words may not be the most efficient approach in this case because some of these words may be more important in some documents than others. 
 
-* IDF term or *inverse document frequency* defined as: $IDF(term) = ln(\frac{n_{documents}}{n_{documents\ containing\ term}})$. This method adjust the weights and balances the usage of words in documents. This implies that it decreases the weight for widely used words and increases the weight for words that did not appear a lot.
+* IDF term or *inverse document frequency* defined as: $IDF(term) = ln(\frac{n_{documents}}{n_{documents\ containing\ term}})$. This method adjusts the weights and balances the usage of words across documents. It decreases the weight for widely used words and increases the weight for words that did not appear a lot.
 
-* TF-IDF, which is short for *term frequency–inverse document frequency*, is a statistical measure that indicates how important a word is to a document in a collection. This is obtained by multiplying the 2 mentioned quantities, which would indicate "the frequency of a term adjusted for how rarely it is used".
+* TF-IDF, which is short for *term frequency–inverse document frequency*, is a statistical measure that indicates how important a word is to a document in a collection. This is obtained by multiplying the two mentioned quantities, which would indicate "the frequency of a term adjusted for how rarely it is used".
 
 ## Example: Charles Dickens
 
-To explore TF-IDF, we will examine several of Charles Dickens' words. The titles of the books we will compare are *A Tale of Two Cities*, *Great Expectations*, *A Christmas Carol in Prose; Being a Ghost Story of Christmas*, *Oliver Twist*, *David Copperfield* and *Hard Times*. We will look to see how the top 10 words with highest TF-IDF values in Charles Dickens' works changes before and after removing stop words. 
+To explore TF-IDF, we will examine several of Charles Dickens' words. The titles of the books we will compare are *A Tale of Two Cities*, *Great Expectations*, *A Christmas Carol in Prose; Being a Ghost Story of Christmas*, *Oliver Twist*, *David Copperfield* and *Hard Times*. We will compare how the top 10 words with highest TF-IDF values in Charles Dickens' works changes before and after removing stop words. 
 
 ### Before Removing Stop Words
 
@@ -149,20 +151,18 @@ The $TF$-$IDF$ values are not different after we remove the stop words because t
 
 # Sentiment Analysis
 
-People are expressing their emotions now more than ever using the internet which provides plenty of data for researchers to use. Sentiment analysis is the process of analyzing the emotions of a given text. Some examples of sentiment analysis are analyzing tweets to analyze sentiments towards a political candidate, prioritize angry customer requests, and gauge brand reputation. Depending on the aim of your analysis, you can use one of several lexicons provided by the tidytext package to analyze the sentiment of a text. Below are the four lexicons provided by the tidytext package: 
-
-Now that we have a book to work with, how do we determine the sentiment of the words in this book? 
+People are expressing their emotions now more than ever using the internet which provides plenty of data for researchers to use. Sentiment analysis is the process of analyzing the emotions of a given text. Some examples of sentiment analysis are analyzing tweets to analyze sentiments towards a political candidate, prioritize angry customer requests, and gauge brand reputation. Depending on the aim of your analysis, you can use one of several lexicons provided by the tidytext package to analyze the sentiment of a text.
 
 ## Sentiment Lexicons 
 
-Within the tidytext library there are four lexicons for use:
+Within the tidytext library there are four lexicons for use [4]:
 
 1. Bing - classifies words as positive or negative
    * Used to analyze generic sentiment about a text
    * 6783 unique words
    * 3 words have duplicate sentiment categories (envious, enviously, enviousness)*
 
-2. AFINN - assigns each token a sentiment between -5 and 5
+2. AFINN - assigns each word a sentiment value between -5 and 5
    * Used to understand degree of positivity or negativity
    * 2477 unique words 
    * Words do not have duplicate sentiment values
@@ -174,7 +174,8 @@ Within the tidytext library there are four lexicons for use:
    * 3688 words have duplicate sentiment categories*
 
 
-4. Loughran - groups words into one of 6 different sentiment categories: {Constraining, Litigious, Negative, Positive, Superfluous, Uncertainty}
+4. Loughran - groups words into one of 6 different sentiment categories
+   * Sentiment categories: {Constraining, Litigious, Negative, Positive, Superfluous, Uncertainty}
    * Primarily used for financial text   
    * 3917 unique words
    * 227 words have duplicate sentiment categories*
@@ -183,7 +184,7 @@ Within the tidytext library there are four lexicons for use:
    
 ### Comparing AFINN and Bing
 
-Because words can have different meanings depending on the context, words can fall into different sentiment categories so there are duplicates in the dataset. For simplicity, since this is a introduction to text mining, we will compare only AFINN and Bing because AFINN has no duplicate values and Bing has a duplicate category for three words.
+Because words can have different meanings depending on the context, words can fall into different sentiment categories so there are duplicates in the dataset. For simplicity, since this is a introduction to text mining, we will compare only AFINN and Bing because AFINN has no duplicate values and Bing has a duplicate category for only three words.
    
 ```{r}
 ## Sentiment lexicons
@@ -214,7 +215,7 @@ Previously mentioned, different lexicons can be used to perform different analys
 
 We will use both of these lexicons to analyze the sentiment of *A Tale of Two Cities* by Charles Dickens, "an 1859 historical novel ... set in London and Paris before and during the French Revolution. The novel tells the story of the French Doctor Manette, his 18-year-long imprisonment in the Bastille in Paris and his release to live in London with his daughter Lucie, whom he had never met. The story is set against the conditions that led up to the French Revolution and the Reign of Terror." [10].
 
-It is important to note that the words envious, enviously, and enviousness do not appear in *A Tale of Two Cities*, so there will be no duplicate sentiments for each word. The book begins with 137,388 words but 91,188 stop words were removed leaving 46,200 words for analysis.
+It is important to note that the words envious, enviously, and enviousness do not appear in *A Tale of Two Cities*, so there will be no duplicate sentiments for any of the words in the document. The book begins with 137,388 words but 91,188 stop words were removed leaving 46,200 words for analysis.
 
 ```{r, results = 'hide'}
 ## We will be working with A Tale of Two Cities, which has id 98
@@ -247,17 +248,17 @@ dim(tidy_two_cities)[1]
 
 ### Overall sentiment of *A Tale of Two Cities*
 
-We will begin by examining the overall sentiment of *A Tale of Two Cities*, we will do this by considering the sentiment all of the words excluding stop words. 
+We will begin by examining the overall sentiment of *A Tale of Two Cities*, we will do this by considering the sentiment of all of the words excluding stop words. 
 
 **Bing** 
 
-Using the Bing sentiment lexicon, we can calculate the sentiment by looking at the number of positive words minus the number of negative words in the document to determine sentiment. If the associated value is greater than 0, this indicates that the text is generally positive. If the associated value is negative, this indicates that the text is generally negative. Finally, if the associated value is equal to 0, this means that the text is neutral. When we join the Bing sentiment lexicon with our data from *A Tale of Two Cities*, there are only 7790 words in the book that have an associated Bing sentiment category, which represents only 16% of the words after we remove stop words. 
+Using the Bing sentiment lexicon, we can calculate the sentiment by looking at the number of positive words minus the number of negative words in the document to determine sentiment. If the associated value is greater than 0, this indicates that the text is generally positive. If the associated value is negative, this indicates that the text is generally negative. Finally, if the associated value is equal to 0, this means that the text is neutral. When we join the Bing sentiment lexicon with our data from *A Tale of Two Cities*, there are only 7,790 words in the book that have an associated Bing sentiment category, which represents only 16% of the words in the document after removing stop words. 
 
 $$Sentiment(text) = \# positive\  words - \# negative\ words$$
 
 $$Sentiment(A\ Tale\ of\ Two\ Cities) = 2852 - 4938 = -2086$$
 
-Since the associated sentiment is less than 0, this indicates that *A Tale of Two Cities* is generally negative. 
+Since the associated sentiment is less than 0, this indicates that the overall sentiment of *A Tale of Two Cities* is negative. 
 
 ```{r, results = 'hide'}
 ## Overall sentiment using Bing
@@ -279,13 +280,13 @@ overall_sentiment <- num_positive - num_negative
 
 **AFINN** 
 
-Using the AFINN sentiment lexicon, we can calculate the sentiment by taking the mean of all of the sentiment values in the document. If the associated value is greater than 0, this indicates that the text is generally positive. If the associated value is negative, this indicates that the text is generally negative. Finally, if the associated value is equal to 0, this means that the text is neutral. When we join the AFINN sentiment lexicon with our data from *A Tale of Two Cities*, there are only 6066 words in the book that have an associated AFINN sentiment value, which represents only 13% of the words after removing stop words. Let n be the number of words in the text that have an associated AFINN value.
+Using the AFINN sentiment lexicon, we can calculate the sentiment by taking the mean of all of the sentiment values in the document. If the associated value is greater than 0, this indicates that the text is generally positive. If the associated value is negative, this indicates that the text is generally negative. Finally, if the associated value is equal to 0, this means that the text is neutral. When we join the AFINN sentiment lexicon with our data from *A Tale of Two Cities*, there are only 6,066 words in the book that have an associated AFINN sentiment value, which represents only 13% of the words in the document after we remove stop words. Let n be the number of words in the text that have an associated AFINN value.
 
 $$Sentiment(text) = \frac{\sum_i AFINN_i}{n}$$
 
 $$Sentiment(A\ Tale\ of\ Two\ Cities) = \frac{-2218}{6066} = -0.3656$$
 
-Since the associated sentiment is less than 0, this indicates that the associated text is generally negative. However, since the value is so close to this means that there are more negative words in the book than positive words. To break this down, we can look at the number of positive words and the number of negative words and their mean AFINN values. There are 2,461 words with an AFINN value greater than 0 and a mean AFINN value of 1.913. There are 3,605 words with an AFINN value less than 0 with a mean AFINN value of -1.911. The average values for these two categories are similar, but since there are more negative words in the book, this will cause the combined sentiment to be less than 0.
+Since the associated sentiment is less than 0, this indicates that the overall sentiment associated text is negative. To break this down, we can look at the number of positive words and the number of negative words and their mean AFINN values. There are 2,461 words with an AFINN value greater than 0 and a mean AFINN value of 1.913. There are 3,605 words with an AFINN value less than 0 with a mean AFINN value of -1.911. The average values for these two categories are similar, but since there are more negative words in the book, this will cause the combined sentiment to be less than 0.
 
 ```{r, results = 'hide'}
 ## Overall sentiment using AFINN
@@ -305,9 +306,10 @@ mean(afinn_two_cities$afinn)
 
 ### Sentiment broken down by book and chapter: analyzing sentiment change over time
 
-After analyzing the overall sentiment of *A Tale of Two Cities*, let's now analyze how the sentiment changes over time. We will do this by looking at the sentiment in each chapter of the three books that make up *A Tale of Two Cities*. 
+After analyzing the overall sentiment of *A Tale of Two Cities*, let's now analyze how the sentiment changes over time. We will do this by first looking at the sentiment in each book, then in each chapter of the three books that make up *A Tale of Two Cities*. 
 
 ```{r, fig.align = 'center'}
+## Code adapted from Text Mining with R [1]
 ## Make book a category instead of a numeric
 bing_two_cities$book <- as.character(bing_two_cities$book)
 afinn_two_cities$book <- as.character(afinn_two_cities$book)
@@ -344,6 +346,7 @@ ggarrange(overall_bing, overall_afinn, ncol = 2)
 ```
 
 ```{r, fig.align = 'center'}
+## Code adapted from Text Mining with R [1]
 ## Sentiment of each chapter using Bing
 chapter_bing <- bing_two_cities %>% 
    filter(book > 0 & chapter > 0) %>% 
@@ -384,7 +387,7 @@ chapter_afinn_plot <- chapter_afinn %>%
 ggarrange(chapter_bing_plot, chapter_afinn_plot, ncol = 2)
 ```
 
-Just using the overall sentiment of *A Tale of Two Cities* or the sentiment of the books, it appears that the book is only negative. However, looking at the sentiment by chapter we can see that most of the chapters are negative, but some are positive. A benefit of using AFINN over Bing is that it takes into consideration the magnitude of positivity or negativity of a word. Even if there were more negative words in a text, if the magnitude of positive words were greater than the magnitude of negative words, this could cause the sentiment to be positive. Here we can see that using the Bing sentiment lexicon, three of the chapters are classified as positive while using the AFINN sentiment lexicon, we classify nine chapters as positive. 
+Just using the overall sentiment of *A Tale of Two Cities* or the sentiment of the books, it appears that the book is only negative. However, looking at the sentiment by chapter we can see that while most of the chapters are negative, but some are positive. A benefit of using AFINN over Bing is that it takes into consideration the magnitude of positivity or negativity of a word. Even if there were more negative words in a text, if the magnitude of positive words were greater than the magnitude of negative words, this could cause the sentiment to be positive. Here we can see that using the Bing sentiment lexicon, three of the chapters are classified as positive while using the AFINN sentiment lexicon, we classify nine chapters as positive. 
 
 Disadvantages of looking at words individually is that you cannot look at how they work together to form a sentence. In English, a double negative creates a positive. 
 
@@ -403,7 +406,7 @@ and the tri-grams are:
 * quick brown fox
 * brown fox jumped
 
-Notice that these n-grams can contain stopwords, so it is often a good idea to filter out any results that include at least one. It is important, however, to mine n-grams before removing stopwords. Otherwise, the cleaning will alter the sequences of words and provide incorrect results. In practice, we can mine text for all n-grams with lengths between some specified minimum and maximum, but we start here by extracting the bi-grams from *A Tale of Two Cities*.
+Notice that these n-grams can contain stop words, so it is often a good idea to filter out any results that include at least one. It is important, however, to mine n-grams before removing stop words. Otherwise, the cleaning will alter the sequences of words and provide incorrect results. In practice, we can mine text for all n-grams with lengths between some specified minimum and maximum, but we start here by extracting the bi-grams from *A Tale of Two Cities*.
 
 ```{r}
 ## Download book text
@@ -426,7 +429,7 @@ ngrams <- unnest_tokens(two_cities, ngram, text, token = 'ngrams', n = 2) %>%
 print(paste('There are', nrow(ngrams), 'bi-grams without stopwords'))
 ```
 
-Even after removing the n-grams that contain stopwords, there are still nearly 12,000 results. We can count the occurrences of each unique pair in order to reduce this number and get a better idea of which bi-grams are important.
+Even after removing the n-grams that contain stop words, there are still nearly 12,000 results. We can count the occurrences of each unique pair in order to reduce this number and get a better idea of which bi-grams are important.
 
 ```{r}
 ## Find the number of occurrences for each pair
@@ -498,12 +501,11 @@ tidy_dickens %>%
          plot.subtitle = element_text(hjust = 0.5))
 ```
 
-When we compare the results of TF-IDF here to the results with single word tokenization, we can see the emphasis on complete character names and, in some cases, actions of characters. By including stopwords in this, we also have the opportunity to see words that would never be significant on their own, but can be important as part of a sequence.
+When we compare the results of TF-IDF here to the results with single word tokenization, we can see the emphasis on complete character names and, in some cases, actions of characters. By including stop words in this, we also have the opportunity to see words that would never be significant on their own, but can be important as part of a sequence.
 
 # Topic Modeling
 
 Topic modeling is an unsupervised method of clustering words from documents into topics. It is unsupervised because we do not know the true topics for the words, but our goal is to discover latent or hidden patterns in the collection of documents. It is similar to clustering numeric data. One example of a use case is if you were a paralegal and had a large batch of emails from discovery, you could use topic modeling to try to identify the topics people were writing about without having to read every document. 
-
 
 ## Latent Direchlet Allocation
 
@@ -635,7 +637,7 @@ ggplot(words.top, aes(beta, term, fill = factor(topic))) +
    facet_wrap(~ topic, scales = "free") +
    scale_y_reordered() + 
    geom_col(show.legend = FALSE) +
-   labs(title="Most Likely Words in Each Topic", x = "Beta", y = "Term")
+   labs(title = "Most Likely Words in Each Topic", x = "Beta", y = "Term")
 ```
 
 Let's look at some interesting words or names in topic 1 such as "dombey" and "florence".
@@ -685,7 +687,7 @@ ggplot(words.top.optimal, aes(beta, term, fill = factor(topic))) +
    facet_wrap(~ topic, scales = "free") +
    scale_y_reordered() +
    geom_col(show.legend = FALSE) + 
-   labs(title="Most Likely Words in Each Topic", x = "Beta", y = "Term")
+   labs(title = "Most Likely Words in Each Topic", x = "Beta", y = "Term")
 ```
 
 We can also look at the composition of topics in each document by extracting the gamma values from our LDA model, which represents the probability of a topic given the document. This is $\theta$ in the LDA graphical model in the previous section. Since each book (document) is written by a different author (topic), we expect that each document should be made up of only one topic. This holds true for almost all the books and every book has 1 dominant topic.
