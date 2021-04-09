@@ -1,0 +1,216 @@
+---
+title: "Introduction to Text Mining: Subset"
+author: "Pantea Ferdosian, Kevin Hoffman, Luke Moles, Marissa Shand"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(error=TRUE,        # Keep compiling upon error
+                      collapse=FALSE,    # collapse by default
+                      echo=TRUE,         # echo code by default
+                      comment = "#>",    # change comment character
+                      fig.width = 10,     # set figure width
+                      fig.align = "center",# set figure position
+                      out.width = "85%", # set width of displayed images
+                      warning=TRUE,      # show R warnings
+                      message=TRUE)      # show R messages
+options(dplyr.summarise.inform = FALSE)  # ignore message about group structure
+```
+```{r packages, include=FALSE}
+
+#- required functions
+library(tidyverse)
+library(tidytext)
+library(igraph)
+library(ggraph)
+library(gutenbergr)
+```
+
+## Bigrams: A Tale of Two Words
+
+It is sometimes useful to look at groups of words in order to understand how they can relate and build off one another. The n-grams of a passage are all the length $n$ sequences of words. For example, the bi-grams of "The quick brown fox jumped" are:
+
+* the quick
+* quick brown
+* brown fox
+* fox jumped
+
+and the tri-grams are:
+
+* the quick brown
+* quick brown fox
+* brown fox jumped
+
+Notice that these n-grams can contain stopwords, so it is often a good idea to filter out any results that include at least one. In practice, we can mine text for all n-grams with lengths between some specified min and max, but here we start by extracting the bigrams from *A Tale of Two Cities*.
+
+```{r}
+# download book text
+ttc <- gutenberg_download(98)['text']
+# remove blank spaces
+ttc <- ttc[ttc$text!='',]
+# remove header material
+ttc <- ttc[53:nrow(ttc),]
+
+# find all size 2 n-grams
+# filter out pairs with stopwords
+ngrams <- unnest_tokens(ttc, ngram, text, token='ngrams', n=2) %>%
+  separate(col=ngram, into=c('first','second'), sep=' ') %>%
+  filter(!(first %in% stop_words$word)) %>%
+  filter(!(second %in% stop_words$word))
+
+print(paste('There are', nrow(ngrams), 'bigrams without stopwords'))
+```
+
+Even after removing the n-grams that contain stopwords, there are still nearly 12,000 results. We can count the occurrences of each unique pair in order to reduce this number and get a better idea of what bigrams are important.
+
+```{r}
+# find the number of occurrences for each pair
+# take the top 50
+ngrams <- ngrams %>%
+  group_by(first, second) %>%
+  summarize(n=n()) %>%
+  arrange(desc(n)) %>%
+  head(50)
+
+head(ngrams)
+```
+Since this text is from a novel, the most common pairs represent the names of characters who are frequently mentioned. Still, some other results may be interesting. We can visualize these by treating the bigrams as a directed graph.
+
+```{r, out.width = "100%"}
+# make a directed graph of bigrams
+g <- graph.data.frame(ngrams, directed=T)
+
+# display graph
+ggraph(g, layout='kk') +
+  geom_edge_link(arrow=arrow(angle=20, type='closed', length=unit(0.1, 'inches')),
+                 aes(color=n)) +
+  geom_node_point() +
+  geom_node_text(aes(label=name), size=3, vjust=1.5, hjust=1) +
+  scale_edge_color_gradient(low='red', high='blue')
+```
+
+## Comparing Italian with English Translation
+
+The histogram looks at frequencies of words of a given length within the selected work.
+
+The graphs show the most common bigrams with stopwords included.
+```{r, out.width = "100%"}
+# look through works of Dante in Italian
+gutenberg_works(languages='it') %>%
+  filter(gutenberg_author_id==507) %>%
+  head(3)
+
+# look through works of Dante in English
+gutenberg_works(languages='en') %>%
+  filter(gutenberg_author_id==507) %>%
+  head(3)
+
+# get the Italian version of Inferno
+it <- gutenberg_download(c(1009,1010,1011))
+
+# get the Wadsworth English translation
+en <- gutenberg_download(c(1001,1002,1003))
+
+
+# tokenize Italian
+it_words <- unnest_tokens(it, word, text)
+
+# get counts of word frequencies
+it_freq <- it_words %>% 
+  mutate(len = nchar(word)) %>%
+  group_by(len) %>%
+  summarize(freq = n()/nrow(it_words)) %>%
+  mutate(Language='Italian')
+
+# tokenize English
+en_words <- unnest_tokens(en, word, text)
+
+# get counts of word frequences
+en_freq <- en_words %>% 
+  mutate(len = nchar(word)) %>%
+  group_by(len) %>%
+  summarize(freq = n()/nrow(en_words)) %>%
+  mutate(Language='English')
+
+
+# plot results
+rbind(it_freq, en_freq) %>%
+  ggplot(aes(x=len, y=freq, fill=Language)) +
+  geom_col(position='dodge') +
+  xlim(1,14) +
+  scale_x_continuous(breaks=1:14, limits=c(1,14)) +
+  xlab('Word Length') +
+  ylab('Frequency')
+
+###############################
+
+# get Italian bigrams
+it_ngrams <- unnest_tokens(it, ngram, text, token='ngrams', n=2) %>%
+  separate(col=ngram, into=c('first','second'), sep=' ') %>%
+  group_by(first, second) %>%
+  summarize(n=n()) %>%
+  arrange(desc(n)) %>%
+  head(50)
+
+# make a directed graph of bigrams
+g_it <- graph.data.frame(it_ngrams, directed=T)
+
+# display graph
+ggraph(g_it, layout='kk') +
+  geom_edge_link(arrow=arrow(angle=20, type='closed', length=unit(0.1, 'inches')),
+                 aes(color=n)) +
+  geom_node_point() +
+  geom_node_text(aes(label=name), size=3, vjust=1.5, hjust=1) +
+  scale_edge_color_gradient(low='red', high='blue')
+
+
+###################################
+
+# get English bigrams
+en_ngrams <- unnest_tokens(en, ngram, text, token='ngrams', n=2) %>%
+  separate(col=ngram, into=c('first','second'), sep=' ') %>%
+  group_by(first, second) %>%
+  summarize(n=n()) %>%
+  arrange(desc(n)) %>%
+  head(50)
+
+# make a directed graph of bigrams
+g_en <- graph.data.frame(en_ngrams, directed=T)
+
+# display graph
+ggraph(g_en, layout='kk') +
+  geom_edge_link(arrow=arrow(angle=20, type='closed', length=unit(0.1, 'inches')),
+                 aes(color=n)) +
+  geom_node_point() +
+  geom_node_text(aes(label=name), size=3, vjust=1.5, hjust=1) +
+  scale_edge_color_gradient(low='red', high='blue')
+```
+
+Look at frequencies for each letter to be final character of a word in both English and Italian.
+
+```{r, out.width = "100%"}
+lastChar <- function(x){
+  return(substr(x, nchar(x), nchar(x)))
+}
+
+it_final <- it_words %>%
+  mutate(last = lastChar(word)) %>%
+  group_by(last) %>%
+  summarize(freq = n()/nrow(it_words)) %>%
+  mutate(Language='Italian')
+en_final <- en_words %>%
+  mutate(last = lastChar(word)) %>%
+  group_by(last) %>%
+  summarize(freq = n()/nrow(en_words)) %>%
+  mutate(Language='English')
+
+rbind(it_final, en_final) %>%
+  ggplot(aes(x=last, y=freq, fill=Language)) +
+  geom_col(position='dodge') +
+  xlim(letters) +
+  xlab('Final Letter') +
+  ylab('Frequency')
+```
